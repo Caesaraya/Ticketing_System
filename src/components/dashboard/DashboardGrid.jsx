@@ -4,6 +4,7 @@ const COLUMN_STYLES = {
   2: 'sm:grid-cols-2',
   3: 'sm:grid-cols-2 lg:grid-cols-3',
   4: 'sm:grid-cols-2 lg:grid-cols-4',
+  6: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
 };
 
 // Thin responsive-grid wrapper so stat-card rows on every dashboard use
