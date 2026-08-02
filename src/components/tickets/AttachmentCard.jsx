@@ -1,0 +1,26 @@
+import { FileText, Download } from 'lucide-react';
+import { toast } from 'sonner';
+
+// One (dummy) attachment row: file icon + name + size + a Download
+// button. Download is a placeholder — no real file exists behind it.
+export default function AttachmentCard({ name, size }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-800">
+      <div className="flex min-w-0 items-center gap-2">
+        <FileText size={16} className="shrink-0 text-gray-400" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">{name}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{size}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => toast.info('Coming soon')}
+        aria-label="Download attachment"
+        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <Download size={16} />
+      </button>
+    </div>
+  );
+}

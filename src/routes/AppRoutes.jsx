@@ -9,8 +9,12 @@ import RootRedirect from './RootRedirect';
 
 import LoginPage from '../pages/auth/LoginPage';
 import UserDashboardPage from '../pages/user/UserDashboardPage';
+import UserTicketListPage from '../pages/user/UserTicketListPage';
 import PMDashboardPage from '../pages/pm/PMDashboardPage';
+import PMTicketListPage from '../pages/pm/PMTicketListPage';
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage';
+import StaffTicketListPage from '../pages/staff/StaffTicketListPage';
+import TicketDetailPage from '../pages/tickets/TicketDetailPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
@@ -29,18 +33,27 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute allowedRoles={[ROLES.USER]} />}>
         <Route element={<MainLayout />}>
           <Route path={ROUTES.USER_DASHBOARD} element={<UserDashboardPage />} />
+          <Route path={ROUTES.USER_TICKETS} element={<UserTicketListPage />} />
         </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={[ROLES.PM]} />}>
         <Route element={<MainLayout />}>
           <Route path={ROUTES.PM_DASHBOARD} element={<PMDashboardPage />} />
+          <Route path={ROUTES.PM_TICKETS} element={<PMTicketListPage />} />
         </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={[ROLES.STAFF]} />}>
         <Route element={<MainLayout />}>
           <Route path={ROUTES.STAFF_DASHBOARD} element={<StaffDashboardPage />} />
+          <Route path={ROUTES.STAFF_TICKETS} element={<StaffTicketListPage />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.USER, ROLES.PM, ROLES.STAFF]} />}>
+        <Route element={<MainLayout />}>
+          <Route path={ROUTES.TICKET_DETAIL} element={<TicketDetailPage />} />
         </Route>
       </Route>
 
