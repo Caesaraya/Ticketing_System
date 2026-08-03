@@ -11,20 +11,7 @@ import TicketPagination from './TicketPagination';
 import TicketActions from './TicketActions';
 import TicketEmptyState from './TicketEmptyState';
 import { buildTicketDetailPath } from '../../constants/routes';
-
-const STATUS_OPTIONS = [
-  { value: 'Open', label: 'Open' },
-  { value: 'In Progress', label: 'In Progress' },
-  { value: 'QA', label: 'QA' },
-  { value: 'Resolved', label: 'Resolved' },
-];
-
-const PRIORITY_OPTIONS = [
-  { value: 'Critical', label: 'Critical' },
-  { value: 'High', label: 'High' },
-  { value: 'Medium', label: 'Medium' },
-  { value: 'Low', label: 'Low' },
-];
+import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../../constants/ticketOptions';
 
 const PAGE_SIZE = 5;
 

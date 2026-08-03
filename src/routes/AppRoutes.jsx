@@ -15,6 +15,7 @@ import PMTicketListPage from '../pages/pm/PMTicketListPage';
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage';
 import StaffTicketListPage from '../pages/staff/StaffTicketListPage';
 import TicketDetailPage from '../pages/tickets/TicketDetailPage';
+import CreateTicketPage from '../pages/tickets/CreateTicketPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
@@ -48,6 +49,12 @@ export default function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path={ROUTES.STAFF_DASHBOARD} element={<StaffDashboardPage />} />
           <Route path={ROUTES.STAFF_TICKETS} element={<StaffTicketListPage />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.USER, ROLES.PM]} />}>
+        <Route element={<MainLayout />}>
+          <Route path={ROUTES.CREATE_TICKET} element={<CreateTicketPage />} />
         </Route>
       </Route>
 
