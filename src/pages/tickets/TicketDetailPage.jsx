@@ -1,208 +1,603 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+
 import { useAuth } from '../../context/AuthContext';
+
 import { ROLES } from '../../constants/roles';
 import { ROUTES } from '../../constants/routes';
-import { PRIORITY_OPTIONS } from '../../constants/ticketOptions';
-import { SHARED_TICKETS } from '../../data/ticketsSharedDummy';
+
+import {
+  getTicketById,
+  updateTicketStatus,
+  assignTicket,
+  updateTicketPriority,
+} from '../../services/ticketService';
+
+import {
+  getUserById,
+} from '../../services/userService';
 
 import Card from '../../components/ui/Card';
 import Select from '../../components/ui/Select';
+
 import TicketDetailHeader from '../../components/tickets/TicketDetailHeader';
 import TicketTimeline from '../../components/tickets/TicketTimeline';
 import TicketInfoCard from '../../components/tickets/TicketInfoCard';
-import CommentCard from '../../components/tickets/CommentCard';
-import AttachmentCard from '../../components/tickets/AttachmentCard';
-import ActivityCard from '../../components/dashboard/ActivityCard';
-import AssigneeAvatar from '../../components/tickets/AssigneeAvatar';
-import TicketActionPanel from '../../components/tickets/TicketActionPanel';
 import TicketEmptyState from '../../components/tickets/TicketEmptyState';
+import TicketActionPanel from '../../components/tickets/TicketActionPanel';
 import StatusSelector from '../../components/tickets/StatusSelector';
 import AssignmentPanel from '../../components/tickets/AssignmentPanel';
-import NoteComposer from '../../components/tickets/NoteComposer';
+import AssigneeAvatar from '../../components/tickets/AssigneeAvatar';
+
+import AttachmentCard from '../../components/tickets/AttachmentCard';
+import CommentCard from '../../components/tickets/CommentCard';
+import ActivityCard from '../../components/dashboard/ActivityCard';
+
+import {
+  PRIORITY_OPTIONS,
+} from '../../constants/ticketOptions';
 
 const BACK_ROUTE_BY_ROLE = {
   [ROLES.USER]: ROUTES.USER_TICKETS,
-  [ROLES.PM]: ROUTES.PM_TICKETS,
-  [ROLES.STAFF]: ROUTES.STAFF_TICKETS,
+  [ROLES.PM_IT]: ROUTES.PM_TICKETS,
+  [ROLES.STAFF_IT]: ROUTES.STAFF_TICKETS,
 };
 
-// One shared Ticket Detail page for every role. Layout is identical —
-// only the back destination and what's inside the action panel change,
-// both derived from the logged-in user's role. Everything workflow-
-// related (status, priority, assignee, notes) lives in local state
-// seeded from the dummy ticket record: no persistence, a refresh
-// resets it back to the original dummy data, exactly as this stage
-// asks for.
-export default function TicketDetailPage() {
-  const { id } = useParams();
-  const { user, role } = useAuth();
-
-  const ticket = SHARED_TICKETS.find((t) => t.id === id);
-
-  const [status, setStatus] = useState(ticket?.timelineStage ?? 'Open');
-  const [priority, setPriority] = useState(ticket?.priority ?? 'Medium');
-  const [assignee, setAssignee] = useState(ticket?.assignee ?? null);
-  const [internalNotes, setInternalNotes] = useState([]);
-  const [workNotes, setWorkNotes] = useState([]);
-
-  if (!ticket) {
-    return <TicketEmptyState message={`Ticket ${id} was not found.`} />;
+function formatDate(value) {
+  if (!value) {
+    return '-';
   }
 
-  const handleAdvanceStatus = (next) => {
-    setStatus(next);
-    toast.success(`Status moved to ${next}`);
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
+}
+
+function getErrorMessage(
+  error,
+  fallback
+) {
+  if (error?.status === 400) {
+    return (
+      error.message ||
+      'This ticket change is not allowed.'
+    );
+  }
+
+  if (error?.status === 403) {
+    return 'You do not have permission to perform this action.';
+  }
+
+  if (error?.status === 404) {
+    return 'The ticket or selected user was not found.';
+  }
+
+  if (error?.status === 422) {
+    return (
+      error.message ||
+      'The submitted data is invalid.'
+    );
+  }
+
+  if (error?.status >= 500) {
+    return 'The server encountered an error. Please try again later.';
+  }
+
+  if (
+    error?.message
+      ?.toLowerCase()
+      .includes('unable to reach')
+  ) {
+    return 'Unable to connect to the Ticketing System backend.';
+  }
+
+  return error?.message || fallback;
+}
+
+export default function TicketDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const { user, role } = useAuth();
+
+  const [ticket, setTicket] =
+    useState(null);
+
+  const [reporterName, setReporterName] =
+    useState('');
+
+  const [assigneeName, setAssigneeName] =
+    useState('');
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState('');
+
+  const [
+    updatingStatus,
+    setUpdatingStatus,
+  ] = useState(false);
+
+  const [
+    updatingPriority,
+    setUpdatingPriority,
+  ] = useState(false);
+
+  const [
+    updatingAssignment,
+    setUpdatingAssignment,
+  ] = useState(false);
+
+  const loadTicket = useCallback(
+    async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const data =
+          await getTicketById(id);
+
+        setTicket(data);
+
+        if (data?.reporter_id) {
+          try {
+            const reporter =
+              await getUserById(
+                data.reporter_id
+              );
+
+            setReporterName(
+              reporter?.name ??
+                `User #${data.reporter_id}`
+            );
+          } catch {
+            setReporterName(
+              `User #${data.reporter_id}`
+            );
+          }
+        } else {
+          setReporterName('');
+        }
+
+        if (data?.pic_id) {
+          try {
+            const assignee =
+              await getUserById(
+                data.pic_id
+              );
+
+            setAssigneeName(
+              assignee?.name ??
+                `User #${data.pic_id}`
+            );
+          } catch {
+            setAssigneeName(
+              `User #${data.pic_id}`
+            );
+          }
+        } else {
+          setAssigneeName('');
+        }
+      } catch (err) {
+        setTicket(null);
+
+        if (err?.status === 404) {
+          setError(
+            `Ticket ${id} was not found.`
+          );
+        } else if (
+          err?.status === 403
+        ) {
+          setError(
+            'You do not have permission to view this ticket.'
+          );
+        } else {
+          setError(
+            getErrorMessage(
+              err,
+              'Failed to load ticket.'
+            )
+          );
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [id]
+  );
+
+  useEffect(() => {
+    loadTicket();
+  }, [loadTicket]);
+
+  const handleAdvanceStatus =
+    async (nextStatus) => {
+      if (!ticket || updatingStatus) {
+        return;
+      }
+
+      setUpdatingStatus(true);
+
+      try {
+        const updated =
+          await updateTicketStatus(
+            ticket.id,
+            nextStatus
+          );
+
+        setTicket(updated);
+
+        toast.success(
+          `Status changed to ${nextStatus}.`
+        );
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            'Failed to update ticket status.'
+          )
+        );
+      } finally {
+        setUpdatingStatus(false);
+      }
+    };
+
+  const handlePriorityChange =
+    async (event) => {
+      if (!ticket || updatingPriority) {
+        return;
+      }
+
+      const nextPriority =
+        event.target.value;
+
+      if (
+        nextPriority === ticket.priority
+      ) {
+        return;
+      }
+
+      setUpdatingPriority(true);
+
+      try {
+        const updated =
+          await updateTicketPriority(
+            ticket.id,
+            nextPriority
+          );
+
+        setTicket(updated);
+
+        toast.success(
+          'Ticket priority updated.'
+        );
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            'Failed to update ticket priority.'
+          )
+        );
+      } finally {
+        setUpdatingPriority(false);
+      }
+    };
+
+  const handleAssign = async (picId) => {
+    if (!ticket || updatingAssignment) {
+      return;
+    }
+
+    if (
+      Number(picId) ===
+      Number(ticket.pic_id)
+    ) {
+      return;
+    }
+
+    setUpdatingAssignment(true);
+
+    try {
+      const updated =
+        await assignTicket(
+          ticket.id,
+          picId
+        );
+
+      setTicket(updated);
+
+      try {
+        const staff =
+          await getUserById(
+            updated.pic_id
+          );
+
+        setAssigneeName(
+          staff?.name ??
+            `User #${updated.pic_id}`
+        );
+      } catch {
+        setAssigneeName(
+          `User #${updated.pic_id}`
+        );
+      }
+
+      toast.success(
+        'Ticket assignment updated.'
+      );
+    } catch (err) {
+      toast.error(
+        getErrorMessage(
+          err,
+          'Failed to assign ticket.'
+        )
+      );
+    } finally {
+      setUpdatingAssignment(false);
+    }
   };
 
-  const handleAssign = (staffName) => {
-    setAssignee(staffName);
-    toast.success(staffName ? `Assigned to ${staffName}` : 'Ticket unassigned');
-  };
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[300px] items-center justify-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Loading ticket...
+        </p>
+      </div>
+    );
+  }
 
-  const handleAddInternalNote = (text) => {
-    setInternalNotes((prev) => [...prev, { author: user?.name, time: 'Just now', message: text }]);
-  };
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <TicketEmptyState
+          message={error}
+        />
 
-  const handleAddWorkNote = (text) => {
-    setWorkNotes((prev) => [...prev, { author: user?.name, time: 'Just now', message: text }]);
-  };
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={loadTicket}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <TicketEmptyState
+        message={`Ticket ${id} was not found.`}
+      />
+    );
+  }
+
+  const isDone =
+    ticket.status === 'DONE';
+
+  const canManageStatus =
+    role === ROLES.PM_IT ||
+    (
+      role === ROLES.STAFF_IT &&
+      Number(ticket.pic_id) ===
+        Number(user?.id)
+    );
+
+  const canManagePriority =
+    role === ROLES.PM_IT;
+
+  const canManageAssignment =
+    role === ROLES.PM_IT;
 
   return (
     <div className="space-y-6">
       <TicketDetailHeader
-        backTo={BACK_ROUTE_BY_ROLE[role]}
-        id={ticket.id}
+        backTo={
+          BACK_ROUTE_BY_ROLE[role] ??
+          ROUTES.HOME
+        }
+        id={ticket.ticket_number}
         title={ticket.title}
-        priority={priority}
-        status={status}
-        createdAt={ticket.createdAt}
+        priority={ticket.priority}
+        status={ticket.status}
+        createdAt={formatDate(
+          ticket.created_at
+        )}
       />
 
       <Card className="p-5">
-        <TicketTimeline currentStage={status} />
+        <TicketTimeline
+          currentStage={ticket.status}
+        />
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Description</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{ticket.description}</p>
+            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Description
+            </h2>
+
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {ticket.description ||
+                'No description provided.'}
+            </p>
           </Card>
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Attachments ({ticket.attachments.length})
+              Attachments
             </h2>
-            {ticket.attachments.length === 0 ? (
-              <TicketEmptyState message="No attachments." />
-            ) : (
-              <div className="space-y-2">
-                {ticket.attachments.map((file) => (
-                  <AttachmentCard key={file.name} {...file} />
-                ))}
-              </div>
-            )}
-          </Card>
 
-          <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Activity History</h2>
-            {ticket.history.length === 0 ? (
-              <TicketEmptyState message="No activity yet." />
-            ) : (
-              ticket.history.map((item, idx) => <ActivityCard key={idx} {...item} />)
-            )}
+            <TicketEmptyState
+              message="Attachments will be integrated in the attachment stage."
+            />
           </Card>
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Comments ({ticket.comments.length})
+              Activity History
             </h2>
-            {ticket.comments.length === 0 ? (
-              <TicketEmptyState message="No comments yet." />
-            ) : (
-              ticket.comments.map((comment, idx) => <CommentCard key={idx} {...comment} />)
-            )}
+
+            <TicketEmptyState
+              message="Ticket history will be integrated with the activity/history stage."
+            />
           </Card>
 
-          {/* Internal notes are PM-only, per role permissions — never shown to User or Staff. */}
-          {role === ROLES.PM && internalNotes.length > 0 && (
-            <Card className="p-5">
-              <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Internal Notes ({internalNotes.length})
-              </h2>
-              {internalNotes.map((note, idx) => (
-                <CommentCard key={idx} {...note} />
-              ))}
-            </Card>
-          )}
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Comments
+            </h2>
 
-          {/* Work notes are Staff-only, per role permissions. */}
-          {role === ROLES.STAFF && workNotes.length > 0 && (
-            <Card className="p-5">
-              <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Work Notes ({workNotes.length})
-              </h2>
-              {workNotes.map((note, idx) => (
-                <CommentCard key={idx} {...note} />
-              ))}
-            </Card>
-          )}
+            <TicketEmptyState
+              message="Comments will be integrated in the comments stage."
+            />
+          </Card>
         </div>
 
         <div className="space-y-6">
           <TicketInfoCard
             title="Ticket Details"
             rows={[
-              { label: 'Category', value: ticket.category },
-              { label: 'Reporter', value: <AssigneeAvatar name={ticket.reporter} /> },
-              { label: 'Assignee', value: <AssigneeAvatar name={assignee} /> },
-              { label: 'Created', value: ticket.createdAt },
+              {
+                label: 'Type',
+                value: ticket.type,
+              },
+              {
+                label: 'Module',
+                value:
+                  ticket.module || '-',
+              },
+              {
+                label: 'Reporter',
+                value: (
+                  <AssigneeAvatar
+                    name={
+                      reporterName ||
+                      `User #${ticket.reporter_id}`
+                    }
+                  />
+                ),
+              },
+              {
+                label: 'Assignee',
+                value: (
+                  <AssigneeAvatar
+                    name={
+                      assigneeName
+                    }
+                  />
+                ),
+              },
+              {
+                label: 'Created',
+                value:
+                  formatDate(
+                    ticket.created_at
+                  ),
+              },
+              {
+                label: 'Updated',
+                value:
+                  formatDate(
+                    ticket.updated_at
+                  ),
+              },
             ]}
           />
 
-          {/* User: view-only, no action panel at all. */}
-          {role === ROLES.PM && (
+          {(canManageStatus ||
+            canManagePriority ||
+            canManageAssignment) && (
             <TicketActionPanel>
-              <StatusSelector status={status} onAdvance={handleAdvanceStatus} />
-
-              <div>
-                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">Priority</p>
-                <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
-                  {PRIORITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <AssignmentPanel assignee={assignee} onAssign={handleAssign} />
-
-              <div>
-                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">Internal Note (PM only)</p>
-                <NoteComposer
-                  placeholder="Add a note visible only to PMs..."
-                  buttonLabel="Add Internal Note"
-                  onAdd={handleAddInternalNote}
+              {canManageStatus && (
+                <StatusSelector
+                  status={ticket.status}
+                  onAdvance={
+                    handleAdvanceStatus
+                  }
+                  disabled={isDone}
+                  isUpdating={
+                    updatingStatus
+                  }
                 />
-              </div>
-            </TicketActionPanel>
-          )}
+              )}
 
-          {role === ROLES.STAFF && (
-            <TicketActionPanel>
-              <StatusSelector status={status} onAdvance={handleAdvanceStatus} />
+              {canManagePriority && (
+                <div>
+                  <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                    Priority
+                  </p>
 
-              <div>
-                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">Work Note</p>
-                <NoteComposer
-                  placeholder="Add a note about your progress on this ticket..."
-                  buttonLabel="Add Work Note"
-                  onAdd={handleAddWorkNote}
+                  <Select
+                    value={
+                      ticket.priority
+                    }
+                    disabled={
+                      isDone ||
+                      updatingPriority
+                    }
+                    onChange={
+                      handlePriorityChange
+                    }
+                  >
+                    {PRIORITY_OPTIONS.map(
+                      (option) => (
+                        <option
+                          key={
+                            option.value
+                          }
+                          value={
+                            option.value
+                          }
+                        >
+                          {option.label}
+                        </option>
+                      )
+                    )}
+                  </Select>
+
+                  {updatingPriority && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      Updating priority...
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {canManageAssignment && (
+                <AssignmentPanel
+                  assigneeId={
+                    ticket.pic_id
+                  }
+                  assigneeName={
+                    assigneeName
+                  }
+                  onAssign={
+                    handleAssign
+                  }
+                  disabled={isDone}
+                  isUpdating={
+                    updatingAssignment
+                  }
                 />
-              </div>
+              )}
+
+              {isDone && (
+                <p className="rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  This ticket is DONE. Workflow changes are locked.
+                </p>
+              )}
             </TicketActionPanel>
           )}
         </div>

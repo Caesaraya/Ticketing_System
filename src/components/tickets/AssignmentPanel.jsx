@@ -1,34 +1,137 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import AssigneeAvatar from './AssigneeAvatar';
-import { DUMMY_STAFF } from '../../data/staffListDummy';
 
-// PM-only panel to (simulate) assign/reassign a ticket to a staff
-// member from the dummy directory. Purely local state — the parent
-// page decides what "assigning" means (here: a setState call).
-export default function AssignmentPanel({ assignee, onAssign }) {
-  const [selected, setSelected] = useState(assignee ?? '');
+import { getStaffUsers } from '../../services/userService';
+
+export default function AssignmentPanel({
+  assigneeId,
+  assigneeName,
+  onAssign,
+  disabled = false,
+  isUpdating = false,
+}) {
+  const [staff, setStaff] = useState([]);
+  const [selected, setSelected] =
+    useState(assigneeId ?? '');
+  const [isLoading, setIsLoading] =
+    useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadStaff() {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const users = await getStaffUsers();
+
+        if (mounted) {
+          setStaff(
+            Array.isArray(users)
+              ? users
+              : []
+          );
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(
+            err?.message ||
+              'Failed to load Staff IT.'
+          );
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadStaff();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setSelected(assigneeId ?? '');
+  }, [assigneeId]);
+
+  const handleAssign = () => {
+    if (!selected) {
+      return;
+    }
+
+    onAssign(Number(selected));
+  };
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500 dark:text-gray-400">Currently assigned to</span>
-        <AssigneeAvatar name={assignee} />
+        <span className="text-gray-500 dark:text-gray-400">
+          Currently assigned to
+        </span>
+
+        <AssigneeAvatar
+          name={assigneeName}
+        />
       </div>
 
-      <Select value={selected} onChange={(e) => setSelected(e.target.value)}>
-        <option value="">Unassigned</option>
-        {DUMMY_STAFF.map((staff) => (
-          <option key={staff.value} value={staff.value}>
-            {staff.label}
-          </option>
-        ))}
-      </Select>
+      {isLoading ? (
+        <p className="text-xs text-gray-400">
+          Loading Staff IT...
+        </p>
+      ) : error ? (
+        <p className="text-xs text-red-500">
+          {error}
+        </p>
+      ) : (
+        <>
+          <Select
+            value={selected}
+            disabled={
+              disabled ||
+              isUpdating
+            }
+            onChange={(event) =>
+              setSelected(event.target.value)
+            }
+          >
+            <option value="">
+              Select Staff IT...
+            </option>
 
-      <Button className="w-full" onClick={() => onAssign(selected || null)}>
-        {assignee ? 'Reassign Ticket' : 'Assign Ticket'}
-      </Button>
+            {staff.map((user) => (
+              <option
+                key={user.id}
+                value={user.id}
+              >
+                {user.name}
+              </option>
+            ))}
+          </Select>
+
+          <Button
+            className="w-full"
+            disabled={
+              disabled ||
+              isUpdating ||
+              !selected
+            }
+            isLoading={isUpdating}
+            onClick={handleAssign}
+          >
+            {assigneeId
+              ? 'Reassign Ticket'
+              : 'Assign Ticket'}
+          </Button>
+        </>
+      )}
     </div>
   );
 }

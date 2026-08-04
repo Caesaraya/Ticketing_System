@@ -1,4 +1,10 @@
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from 'recharts';
+
 import Card from '../ui/Card';
 
 const COLORS = {
@@ -8,40 +14,72 @@ const COLORS = {
   Low: '#9ca3af',
 };
 
-// PM-only donut chart with a centered total label and a color-key
-// legend underneath. Colors are applied via inline style since they're
-// data-driven (can't be expressed as static Tailwind classes).
-export default function PriorityDistributionChart({ data, total }) {
+export default function PriorityDistributionChart({
+  data,
+  total,
+}) {
   return (
     <Card className="p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Priority Distribution</h2>
-        <p className="text-xs text-gray-400 dark:text-gray-500">Current active backlog</p>
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Priority Distribution
+        </h2>
+
+        <p className="text-xs text-gray-400 dark:text-gray-500">
+          Current ticket distribution
+        </p>
       </div>
 
       <div className="relative">
         <ResponsiveContainer width="100%" height={200}>
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="label" innerRadius={60} outerRadius={85} paddingAngle={2}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="label"
+              innerRadius={60}
+              outerRadius={85}
+              paddingAngle={2}
+            >
               {data.map((entry) => (
-                <Cell key={entry.label} fill={COLORS[entry.label] ?? '#9ca3af'} />
+                <Cell
+                  key={entry.label}
+                  fill={
+                    COLORS[entry.label] ??
+                    '#9ca3af'
+                  }
+                />
               ))}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
+
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{total}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500">Active</p>
+          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            {total}
+          </p>
+
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Total
+          </p>
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
         {data.map((entry) => (
-          <span key={entry.label} className="flex items-center gap-1.5">
+          <span
+            key={entry.label}
+            className="flex items-center gap-1.5"
+          >
             <span
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: COLORS[entry.label] ?? '#9ca3af' }}
+              style={{
+                backgroundColor:
+                  COLORS[entry.label] ??
+                  '#9ca3af',
+              }}
             />
+
             {entry.label}
           </span>
         ))}

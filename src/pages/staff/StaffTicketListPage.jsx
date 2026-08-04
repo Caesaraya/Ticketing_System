@@ -1,21 +1,35 @@
-import { useAuth } from '../../context/AuthContext';
-import { SHARED_TICKETS } from '../../data/ticketsSharedDummy';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+
+import { ROUTES } from '../../constants/routes';
+
 import TicketListView from '../../components/tickets/TicketListView';
+import Button from '../../components/ui/Button';
 
-// Staff only sees tickets assigned to them — View only, no Assign
-// action (assignment is PM-only).
-export default function StaffTicketListPage() {
-  const { user } = useAuth();
-
-  const myAssignedTickets = SHARED_TICKETS.filter((ticket) => ticket.assignee === user?.name);
+export default function UserTicketListPage() {
+  const navigate = useNavigate();
 
   return (
     <TicketListView
-      tickets={myAssignedTickets}
-      breadcrumb={[{ label: 'Tickets' }, { label: 'My Assignments' }]}
-      title="My Assignments"
-      emptyMessage="No tickets are assigned to you yet."
+      breadcrumb={[
+        { label: 'Tickets' },
+        { label: 'My Tickets' },
+      ]}
+      title="My Tickets"
+      emptyMessage="You haven't created any tickets yet."
       showAssignAction={false}
+      headerAction={
+        <Button
+          icon={Plus}
+          onClick={() =>
+            navigate(
+              ROUTES.CREATE_TICKET
+            )
+          }
+        >
+          Create Ticket
+        </Button>
+      }
     />
   );
 }

@@ -1,53 +1,59 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import clsx from 'clsx';
+import {
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
-// Purely presentational pagination control. The parent page owns page
-// state and passes the current values in plus a callback — this
-// component fires no requests and holds no state of its own.
-export default function TicketPagination({ page, totalPages, totalItems, pageSize, onPageChange }) {
-  const from = (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, totalItems);
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+export default function TicketPagination({
+  page,
+  pageSize,
+  currentItemCount,
+  hasNextPage,
+  onPrevious,
+  onNext,
+  isLoading = false,
+}) {
+  const from =
+    currentItemCount === 0
+      ? 0
+      : (page - 1) * pageSize + 1;
+
+  const to =
+    (page - 1) * pageSize +
+    currentItemCount;
 
   return (
     <div className="flex items-center justify-between pt-4 text-sm text-gray-500 dark:text-gray-400">
       <p>
-        Showing {from} to {to} of {totalItems} tickets
+        {currentItemCount === 0
+          ? 'No tickets'
+          : `Showing ${from} to ${to}`}
       </p>
 
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
+          onClick={onPrevious}
+          disabled={
+            page <= 1 || isLoading
+          }
           aria-label="Previous page"
-          className="rounded-lg p-1.5 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+          className="rounded-lg p-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-gray-800"
         >
           <ChevronLeft size={16} />
         </button>
 
-        {pages.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onPageChange(p)}
-            className={clsx(
-              'h-7 w-7 rounded-lg text-xs font-medium',
-              p === page
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
-            )}
-          >
-            {p}
-          </button>
-        ))}
+        <span className="px-3 text-xs font-medium text-gray-600 dark:text-gray-300">
+          Page {page}
+        </span>
 
         <button
           type="button"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages}
+          onClick={onNext}
+          disabled={
+            !hasNextPage || isLoading
+          }
           aria-label="Next page"
-          className="rounded-lg p-1.5 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+          className="rounded-lg p-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-gray-800"
         >
           <ChevronRight size={16} />
         </button>

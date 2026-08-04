@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
 import Card from '../ui/Card';
-import Button from '../ui/Button';
 import TicketHeader from './TicketHeader';
 import TicketToolbar from './TicketToolbar';
 import FilterDropdown from './FilterDropdown';
@@ -10,134 +9,208 @@ import TicketTable from './TicketTable';
 import TicketPagination from './TicketPagination';
 import TicketActions from './TicketActions';
 import TicketEmptyState from './TicketEmptyState';
-import { buildTicketDetailPath } from '../../constants/routes';
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../../constants/ticketOptions';
 
-const PAGE_SIZE = 5;
+import {
+  buildTicketDetailPath,
+} from '../../constants/routes';
 
-// Shared container for every role's Ticket List. Holds the only bits
-// that differ between User/PM/Staff as props (tickets, whether the
-// Assign action shows, the empty-state message, breadcrumb/title) and
-// owns the search/filter/pagination/dummy-loading UI state itself —
-// so that state and the surrounding layout exist in exactly one place
-// instead of being copy-pasted into three page files.
+import {
+  STATUS_OPTIONS,
+  PRIORITY_OPTIONS,
+  TYPE_OPTIONS,
+} from '../../constants/ticketOptions';
+
 export default function TicketListView({
-  tickets,
+  tickets = [],
   breadcrumb,
   title,
   emptyMessage,
   showAssignAction = false,
   headerAction,
+
+  searchValue = '',
+  onSearchChange,
+
+  statusFilter = '',
+  onStatusChange,
+
+  priorityFilter = '',
+  onPriorityChange,
+
+  typeFilter = '',
+  onTypeChange,
+
+  sortBy = 'created_at',
+  onSortByChange,
+
+  sortOrder = 'desc',
+  onSortOrderChange,
+
+  onClear,
+
+  page = 1,
+  pageSize = 10,
+  hasNextPage = false,
+  onPrevious,
+  onNext,
+
+  isLoading = false,
+  error = null,
+  onRetry,
 }) {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [page, setPage] = useState(1);
-
-  // Dummy loading state only — no real request is made. Simulates the
-  // shape of a future API call so pages don't need to change when one
-  // is wired up.
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(timer);
-  }, [tickets]);
-
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return tickets.filter((ticket) => {
-      const matchesSearch =
-        !query ||
-        ticket.id.toLowerCase().includes(query) ||
-        ticket.title.toLowerCase().includes(query) ||
-        (ticket.assignee ?? '').toLowerCase().includes(query);
-
-      const matchesStatus = !statusFilter || ticket.status === statusFilter;
-      const matchesPriority = !priorityFilter || ticket.priority === priorityFilter;
-
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
-  }, [tickets, search, statusFilter, priorityFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const handleSearchChange = (value) => {
-    setSearch(value);
-    setPage(1);
-  };
-
-  const handleStatusChange = (value) => {
-    setStatusFilter(value);
-    setPage(1);
-  };
-
-  const handlePriorityChange = (value) => {
-    setPriorityFilter(value);
-    setPage(1);
-  };
-
-  const handleClear = () => {
-    setSearch('');
-    setStatusFilter('');
-    setPriorityFilter('');
-    setPage(1);
-  };
 
   const renderActions = (ticket) => (
     <TicketActions
-      onView={() => navigate(buildTicketDetailPath(ticket.id))}
-      onAssign={showAssignAction ? () => toast.info('Coming soon') : undefined}
+      onView={() =>
+        navigate(
+          buildTicketDetailPath(ticket.id)
+        )
+      }
+      onAssign={
+        showAssignAction
+          ? () => toast.info('Coming soon')
+          : undefined
+      }
     />
   );
 
+  const hasFilters =
+    searchValue ||
+    statusFilter ||
+    priorityFilter ||
+    typeFilter;
+
   return (
     <div className="space-y-6">
-      <TicketHeader breadcrumb={breadcrumb} title={title} trailing={headerAction} />
+      <TicketHeader
+        breadcrumb={breadcrumb}
+        title={title}
+        trailing={headerAction}
+      />
 
       <Card className="p-5">
         <TicketToolbar
-          searchValue={search}
-          onSearchChange={handleSearchChange}
-          onClear={handleClear}
+          searchValue={searchValue}
+          onSearchChange={onSearchChange}
+          onClear={onClear}
           filters={
             <>
               <FilterDropdown
                 label="Status"
                 value={statusFilter}
-                onChange={handleStatusChange}
+                onChange={onStatusChange}
                 options={STATUS_OPTIONS}
               />
+
               <FilterDropdown
                 label="Priority"
                 value={priorityFilter}
-                onChange={handlePriorityChange}
+                onChange={onPriorityChange}
                 options={PRIORITY_OPTIONS}
+              />
+
+              <FilterDropdown
+                label="Type"
+                value={typeFilter}
+                onChange={onTypeChange}
+                options={TYPE_OPTIONS}
+              />
+
+              <FilterDropdown
+                label="Sort"
+                value={sortBy}
+                onChange={onSortByChange}
+                options={[
+                  {
+                    value: 'created_at',
+                    label: 'Created',
+                  },
+                  {
+                    value: 'updated_at',
+                    label: 'Updated',
+                  },
+                ]}
+              />
+
+              <FilterDropdown
+                label="Order"
+                value={sortOrder}
+                onChange={onSortOrderChange}
+                options={[
+                  {
+                    value: 'desc',
+                    label: 'Newest first',
+                  },
+                  {
+                    value: 'asc',
+                    label: 'Oldest first',
+                  },
+                ]}
               />
             </>
           }
         />
 
         <div className="mt-4">
-          {!isLoading && filtered.length === 0 ? (
-            <TicketEmptyState message={emptyMessage} />
+          {error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/40 dark:bg-red-950/20">
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                {error.status === 403
+                  ? 'You do not have permission to view these tickets.'
+                  : error.status === 404
+                    ? 'Ticket data was not found.'
+                    : error.status === 422
+                      ? 'The ticket filters are invalid.'
+                      : 'Unable to load tickets.'}
+              </p>
+
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-3 text-sm font-medium text-blue-600 hover:underline"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          ) : isLoading ? (
+            <TicketTable
+              tickets={[]}
+              isLoading
+              renderActions={renderActions}
+            />
+          ) : tickets.length === 0 ? (
+            <TicketEmptyState
+              message={
+                hasFilters
+                  ? 'No tickets match your filters.'
+                  : emptyMessage
+              }
+            />
           ) : (
-            <TicketTable tickets={pageItems} isLoading={isLoading} renderActions={renderActions} />
+            <TicketTable
+              tickets={tickets}
+              isLoading={false}
+              renderActions={renderActions}
+            />
           )}
         </div>
 
-        {!isLoading && filtered.length > 0 && (
-          <TicketPagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={filtered.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        )}
+        {!isLoading &&
+          !error &&
+          tickets.length > 0 && (
+            <TicketPagination
+              page={page}
+              pageSize={pageSize}
+              currentItemCount={tickets.length}
+              hasNextPage={hasNextPage}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              isLoading={isLoading}
+            />
+          )}
       </Card>
     </div>
   );
