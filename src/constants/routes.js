@@ -22,18 +22,36 @@ export const ROUTES = Object.freeze({
   UNAUTHORIZED: '/unauthorized',
 });
 
-export const buildTicketDetailPath = (
-  id
-) => `/tickets/${id}`;
+export function buildTicketDetailPath(id) {
+  if (
+    id === undefined ||
+    id === null ||
+    id === ''
+  ) {
+    return ROUTES.TICKET_DETAIL;
+  }
 
-export const DASHBOARD_BY_ROLE =
-  Object.freeze({
-    [ROLES.USER]:
-      ROUTES.USER_DASHBOARD,
+  return `/tickets/${id}`;
+}
 
-    [ROLES.PM_IT]:
-      ROUTES.PM_DASHBOARD,
+export const DASHBOARD_BY_ROLE = Object.freeze({
+  [ROLES.USER]:
+    ROUTES.USER_DASHBOARD,
 
-    [ROLES.STAFF_IT]:
-      ROUTES.STAFF_DASHBOARD,
-  });
+  [ROLES.PM_IT]:
+    ROUTES.PM_DASHBOARD,
+
+  [ROLES.STAFF_IT]:
+    ROUTES.STAFF_DASHBOARD,
+});
+
+export const TICKET_LIST_BY_ROLE = Object.freeze({
+  [ROLES.USER]:
+    ROUTES.USER_TICKETS,
+
+  [ROLES.PM_IT]:
+    ROUTES.PM_TICKETS,
+
+  [ROLES.STAFF_IT]:
+    ROUTES.STAFF_TICKETS,
+});

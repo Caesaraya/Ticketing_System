@@ -3,16 +3,12 @@ import {
   Route,
 } from 'react-router-dom';
 
-import {
-  ROLES,
-} from '../constants/roles';
-
-import {
-  ROUTES,
-} from '../constants/routes';
+import { ROLES } from '../constants/roles';
+import { ROUTES } from '../constants/routes';
 
 import AuthLayout from '../layouts/AuthLayout';
 import MainLayout from '../layouts/MainLayout';
+
 import ProtectedRoute from './ProtectedRoute';
 import RootRedirect from './RootRedirect';
 
@@ -60,10 +56,18 @@ import NotFoundPage
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* =====================================================
+          ROOT
+      ====================================================== */}
+
       <Route
         path={ROUTES.HOME}
         element={<RootRedirect />}
       />
+
+      {/* =====================================================
+          AUTH
+      ====================================================== */}
 
       <Route element={<AuthLayout />}>
         <Route
@@ -71,6 +75,10 @@ export default function AppRoutes() {
           element={<LoginPage />}
         />
       </Route>
+
+      {/* =====================================================
+          USER
+      ====================================================== */}
 
       <Route
         element={
@@ -98,6 +106,10 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
+      {/* =====================================================
+          PM IT
+      ====================================================== */}
+
       <Route
         element={
           <ProtectedRoute
@@ -123,6 +135,10 @@ export default function AppRoutes() {
           />
         </Route>
       </Route>
+
+      {/* =====================================================
+          STAFF IT
+      ====================================================== */}
 
       <Route
         element={
@@ -150,6 +166,11 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
+      {/* =====================================================
+          CREATE TICKET
+          USER + PM IT
+      ====================================================== */}
+
       <Route
         element={
           <ProtectedRoute
@@ -169,6 +190,11 @@ export default function AppRoutes() {
           />
         </Route>
       </Route>
+
+      {/* =====================================================
+          TICKET DETAIL + SHARED PAGES
+          ALL AUTHENTICATED ROLES
+      ====================================================== */}
 
       <Route
         element={
@@ -212,12 +238,20 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
+      {/* =====================================================
+          UNAUTHORIZED
+      ====================================================== */}
+
       <Route
         path={ROUTES.UNAUTHORIZED}
         element={
           <UnauthorizedPage />
         }
       />
+
+      {/* =====================================================
+          404
+      ====================================================== */}
 
       <Route
         path="*"

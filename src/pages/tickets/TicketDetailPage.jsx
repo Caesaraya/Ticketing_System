@@ -1,11 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+
 import { toast } from 'sonner';
 
 import { useAuth } from '../../context/AuthContext';
 
-import { ROLES } from '../../constants/roles';
-import { ROUTES } from '../../constants/routes';
+import {
+  ROLES,
+} from '../../constants/roles';
+
+import {
+  ROUTES,
+  TICKET_LIST_BY_ROLE,
+} from '../../constants/routes';
 
 import {
   getTicketById,
@@ -21,28 +36,38 @@ import {
 import Card from '../../components/ui/Card';
 import Select from '../../components/ui/Select';
 
-import TicketDetailHeader from '../../components/tickets/TicketDetailHeader';
-import TicketTimeline from '../../components/tickets/TicketTimeline';
-import TicketInfoCard from '../../components/tickets/TicketInfoCard';
-import TicketEmptyState from '../../components/tickets/TicketEmptyState';
-import TicketActionPanel from '../../components/tickets/TicketActionPanel';
-import StatusSelector from '../../components/tickets/StatusSelector';
-import AssignmentPanel from '../../components/tickets/AssignmentPanel';
-import AssigneeAvatar from '../../components/tickets/AssigneeAvatar';
+import TicketDetailHeader
+  from '../../components/tickets/TicketDetailHeader';
 
-import AttachmentCard from '../../components/tickets/AttachmentCard';
-import CommentCard from '../../components/tickets/CommentCard';
-import ActivityCard from '../../components/dashboard/ActivityCard';
+import TicketTimeline
+  from '../../components/tickets/TicketTimeline';
+
+import TicketInfoCard
+  from '../../components/tickets/TicketInfoCard';
+
+import TicketEmptyState
+  from '../../components/tickets/TicketEmptyState';
+
+import TicketActionPanel
+  from '../../components/tickets/TicketActionPanel';
+
+import StatusSelector
+  from '../../components/tickets/StatusSelector';
+
+import AssignmentPanel
+  from '../../components/tickets/AssignmentPanel';
+
+import AssigneeAvatar
+  from '../../components/tickets/AssigneeAvatar';
 
 import {
   PRIORITY_OPTIONS,
 } from '../../constants/ticketOptions';
 
-const BACK_ROUTE_BY_ROLE = {
-  [ROLES.USER]: ROUTES.USER_TICKETS,
-  [ROLES.PM_IT]: ROUTES.PM_TICKETS,
-  [ROLES.STAFF_IT]: ROUTES.STAFF_TICKETS,
-};
+
+/* ============================================================
+   HELPERS
+============================================================ */
 
 function formatDate(value) {
   if (!value) {
@@ -51,12 +76,23 @@ function formatDate(value) {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
-  return date.toLocaleString();
+  return date.toLocaleString(
+    'en-GB',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }
+  );
 }
+
 
 function getErrorMessage(
   error,
@@ -69,12 +105,25 @@ function getErrorMessage(
     );
   }
 
+  if (error?.status === 401) {
+    return (
+      error.message ||
+      'Your session has expired. Please login again.'
+    );
+  }
+
   if (error?.status === 403) {
-    return 'You do not have permission to perform this action.';
+    return (
+      error.message ||
+      'You do not have permission to perform this action.'
+    );
   }
 
   if (error?.status === 404) {
-    return 'The ticket or selected user was not found.';
+    return (
+      error.message ||
+      'The ticket or selected user was not found.'
+    );
   }
 
   if (error?.status === 422) {
@@ -85,40 +134,77 @@ function getErrorMessage(
   }
 
   if (error?.status >= 500) {
-    return 'The server encountered an error. Please try again later.';
+    return (
+      'The server encountered an error. Please try again later.'
+    );
   }
 
   if (
     error?.message
       ?.toLowerCase()
-      .includes('unable to reach')
+      .includes(
+        'unable to reach'
+      )
   ) {
-    return 'Unable to connect to the Ticketing System backend.';
+    return (
+      'Unable to connect to the Ticketing System backend.'
+    );
   }
 
-  return error?.message || fallback;
+  return (
+    error?.message ||
+    fallback
+  );
 }
 
+
+/* ============================================================
+   COMPONENT
+============================================================ */
+
 export default function TicketDetailPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const {
+    id,
+  } = useParams();
 
-  const { user, role } = useAuth();
+  const navigate =
+    useNavigate();
 
-  const [ticket, setTicket] =
-    useState(null);
+  const {
+    user,
+    role,
+  } = useAuth();
 
-  const [reporterName, setReporterName] =
-    useState('');
 
-  const [assigneeName, setAssigneeName] =
-    useState('');
+  /* ==========================================================
+     STATE
+  ========================================================== */
 
-  const [isLoading, setIsLoading] =
-    useState(true);
+  const [
+    ticket,
+    setTicket,
+  ] = useState(null);
 
-  const [error, setError] =
-    useState('');
+  const [
+    reporterName,
+    setReporterName,
+  ] = useState('');
+
+  const [
+    assigneeName,
+    setAssigneeName,
+  ] = useState('');
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
 
   const [
     updatingStatus,
@@ -135,8 +221,22 @@ export default function TicketDetailPage() {
     setUpdatingAssignment,
   ] = useState(false);
 
+
+  /* ==========================================================
+     LOAD TICKET
+  ========================================================== */
+
   const loadTicket = useCallback(
     async () => {
+      if (!id) {
+        setTicket(null);
+        setError(
+          'Ticket ID is missing.'
+        );
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError('');
 
@@ -145,6 +245,11 @@ export default function TicketDetailPage() {
           await getTicketById(id);
 
         setTicket(data);
+
+
+        /* ------------------------------------------------------
+           Reporter
+        ------------------------------------------------------ */
 
         if (data?.reporter_id) {
           try {
@@ -155,7 +260,7 @@ export default function TicketDetailPage() {
 
             setReporterName(
               reporter?.name ??
-                `User #${data.reporter_id}`
+              `User #${data.reporter_id}`
             );
           } catch {
             setReporterName(
@@ -166,6 +271,11 @@ export default function TicketDetailPage() {
           setReporterName('');
         }
 
+
+        /* ------------------------------------------------------
+           Assignee
+        ------------------------------------------------------ */
+
         if (data?.pic_id) {
           try {
             const assignee =
@@ -175,7 +285,7 @@ export default function TicketDetailPage() {
 
             setAssigneeName(
               assignee?.name ??
-                `User #${data.pic_id}`
+              `User #${data.pic_id}`
             );
           } catch {
             setAssigneeName(
@@ -187,6 +297,9 @@ export default function TicketDetailPage() {
         }
       } catch (err) {
         setTicket(null);
+
+        setReporterName('');
+        setAssigneeName('');
 
         if (err?.status === 404) {
           setError(
@@ -213,13 +326,23 @@ export default function TicketDetailPage() {
     [id]
   );
 
+
   useEffect(() => {
     loadTicket();
   }, [loadTicket]);
 
+
+  /* ==========================================================
+     STATUS
+  ========================================================== */
+
   const handleAdvanceStatus =
     async (nextStatus) => {
-      if (!ticket || updatingStatus) {
+      if (
+        !ticket ||
+        updatingStatus ||
+        ticket.status === 'DONE'
+      ) {
         return;
       }
 
@@ -249,9 +372,18 @@ export default function TicketDetailPage() {
       }
     };
 
+
+  /* ==========================================================
+     PRIORITY
+  ========================================================== */
+
   const handlePriorityChange =
     async (event) => {
-      if (!ticket || updatingPriority) {
+      if (
+        !ticket ||
+        updatingPriority ||
+        ticket.status === 'DONE'
+      ) {
         return;
       }
 
@@ -259,7 +391,8 @@ export default function TicketDetailPage() {
         event.target.value;
 
       if (
-        nextPriority === ticket.priority
+        nextPriority ===
+        ticket.priority
       ) {
         return;
       }
@@ -290,59 +423,83 @@ export default function TicketDetailPage() {
       }
     };
 
-  const handleAssign = async (picId) => {
-    if (!ticket || updatingAssignment) {
-      return;
-    }
 
-    if (
-      Number(picId) ===
-      Number(ticket.pic_id)
-    ) {
-      return;
-    }
+  /* ==========================================================
+     ASSIGNMENT
+  ========================================================== */
 
-    setUpdatingAssignment(true);
-
-    try {
-      const updated =
-        await assignTicket(
-          ticket.id,
-          picId
-        );
-
-      setTicket(updated);
-
-      try {
-        const staff =
-          await getUserById(
-            updated.pic_id
-          );
-
-        setAssigneeName(
-          staff?.name ??
-            `User #${updated.pic_id}`
-        );
-      } catch {
-        setAssigneeName(
-          `User #${updated.pic_id}`
-        );
+  const handleAssign =
+    async (picId) => {
+      if (
+        !ticket ||
+        updatingAssignment ||
+        ticket.status === 'DONE'
+      ) {
+        return;
       }
 
-      toast.success(
-        'Ticket assignment updated.'
-      );
-    } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          'Failed to assign ticket.'
-        )
-      );
-    } finally {
-      setUpdatingAssignment(false);
-    }
-  };
+      if (
+        Number(picId) ===
+        Number(ticket.pic_id)
+      ) {
+        return;
+      }
+
+      setUpdatingAssignment(true);
+
+      try {
+        const updated =
+          await assignTicket(
+            ticket.id,
+            picId
+          );
+
+        setTicket(updated);
+
+
+        /* ------------------------------------------------------
+           Reload assignee name
+        ------------------------------------------------------ */
+
+        if (updated?.pic_id) {
+          try {
+            const staff =
+              await getUserById(
+                updated.pic_id
+              );
+
+            setAssigneeName(
+              staff?.name ??
+              `User #${updated.pic_id}`
+            );
+          } catch {
+            setAssigneeName(
+              `User #${updated.pic_id}`
+            );
+          }
+        } else {
+          setAssigneeName('');
+        }
+
+        toast.success(
+          'Ticket assignment updated.'
+        );
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            'Failed to assign ticket.'
+          )
+        );
+      } finally {
+        setUpdatingAssignment(false);
+      }
+    };
+
+
+  /* ==========================================================
+     LOADING
+  ========================================================== */
 
   if (isLoading) {
     return (
@@ -353,6 +510,11 @@ export default function TicketDetailPage() {
       </div>
     );
   }
+
+
+  /* ==========================================================
+     ERROR
+  ========================================================== */
 
   if (error) {
     return (
@@ -374,16 +536,36 @@ export default function TicketDetailPage() {
     );
   }
 
+
+  /* ==========================================================
+     EMPTY
+  ========================================================== */
+
   if (!ticket) {
     return (
       <TicketEmptyState
-        message={`Ticket ${id} was not found.`}
+        message={
+          `Ticket ${id} was not found.`
+        }
       />
     );
   }
 
+
+  /* ==========================================================
+     PERMISSIONS
+  ========================================================== */
+
   const isDone =
     ticket.status === 'DONE';
+
+
+  /*
+   * PM_IT:
+   * - status
+   * - priority
+   * - assignment
+   */
 
   const canManageStatus =
     role === ROLES.PM_IT ||
@@ -393,19 +575,42 @@ export default function TicketDetailPage() {
         Number(user?.id)
     );
 
+
   const canManagePriority =
     role === ROLES.PM_IT;
+
 
   const canManageAssignment =
     role === ROLES.PM_IT;
 
+
+  /*
+   * User hanya dapat melihat ticket.
+   */
+
+
+  /* ==========================================================
+     BACK ROUTE
+  ========================================================== */
+
+  const backRoute =
+    TICKET_LIST_BY_ROLE[role] ??
+    ROUTES.HOME;
+
+
+  /* ==========================================================
+     RENDER
+  ========================================================== */
+
   return (
     <div className="space-y-6">
+
+      {/* ======================================================
+          HEADER
+      ======================================================= */}
+
       <TicketDetailHeader
-        backTo={
-          BACK_ROUTE_BY_ROLE[role] ??
-          ROUTES.HOME
-        }
+        backTo={backRoute}
         id={ticket.ticket_number}
         title={ticket.title}
         priority={ticket.priority}
@@ -415,34 +620,51 @@ export default function TicketDetailPage() {
         )}
       />
 
+
+      {/* ======================================================
+          WORKFLOW TIMELINE
+      ======================================================= */}
+
       <Card className="p-5">
         <TicketTimeline
-          currentStage={ticket.status}
+          currentStage={
+            ticket.status
+          }
         />
       </Card>
 
+
+      {/* ======================================================
+          MAIN CONTENT
+      ======================================================= */}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+        {/* ====================================================
+            LEFT
+        ===================================================== */}
+
         <div className="space-y-6 lg:col-span-2">
+
+          {/* --------------------------------------------------
+              DESCRIPTION
+          --------------------------------------------------- */}
+
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Description
             </h2>
 
-            <p className="text-sm text-gray-600 dark:text-gray-300">
+            <p className="whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300">
               {ticket.description ||
                 'No description provided.'}
             </p>
           </Card>
 
-          <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Attachments
-            </h2>
 
-            <TicketEmptyState
-              message="Attachments will be integrated in the attachment stage."
-            />
-          </Card>
+          {/* --------------------------------------------------
+              ACTIVITY HISTORY
+          --------------------------------------------------- */}
 
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -454,51 +676,97 @@ export default function TicketDetailPage() {
             />
           </Card>
 
+
+          {/* --------------------------------------------------
+              COMMENTS
+          --------------------------------------------------- */}
+
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Comments
             </h2>
 
             <TicketEmptyState
-              message="Comments will be integrated in the comments stage."
+              message="Comments will be integrated with the comment stage."
             />
           </Card>
+
+
+          {/* --------------------------------------------------
+              ATTACHMENTS
+          --------------------------------------------------- */}
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Attachments
+            </h2>
+
+            <TicketEmptyState
+              message="Attachments will be integrated with the attachment stage."
+            />
+          </Card>
+
         </div>
 
+
+        {/* ====================================================
+            RIGHT SIDEBAR
+        ===================================================== */}
+
         <div className="space-y-6">
+
+          {/* --------------------------------------------------
+              TICKET INFORMATION
+          --------------------------------------------------- */}
+
           <TicketInfoCard
             title="Ticket Details"
             rows={[
               {
                 label: 'Type',
-                value: ticket.type,
+                value:
+                  ticket.type,
               },
+
               {
                 label: 'Module',
                 value:
-                  ticket.module || '-',
+                  ticket.module ||
+                  '-',
               },
+
               {
                 label: 'Reporter',
                 value: (
                   <AssigneeAvatar
                     name={
                       reporterName ||
-                      `User #${ticket.reporter_id}`
+                      (
+                        ticket.reporter_id
+                          ? `User #${ticket.reporter_id}`
+                          : '-'
+                      )
                     }
                   />
                 ),
               },
+
               {
                 label: 'Assignee',
                 value: (
                   <AssigneeAvatar
                     name={
-                      assigneeName
+                      assigneeName ||
+                      (
+                        ticket.pic_id
+                          ? `User #${ticket.pic_id}`
+                          : 'Unassigned'
+                      )
                     }
                   />
                 ),
               },
+
               {
                 label: 'Created',
                 value:
@@ -506,6 +774,7 @@ export default function TicketDetailPage() {
                     ticket.created_at
                   ),
               },
+
               {
                 label: 'Updated',
                 value:
@@ -516,22 +785,44 @@ export default function TicketDetailPage() {
             ]}
           />
 
-          {(canManageStatus ||
+
+          {/* --------------------------------------------------
+              ACTION PANEL
+          --------------------------------------------------- */}
+
+          {(
+            canManageStatus ||
             canManagePriority ||
-            canManageAssignment) && (
+            canManageAssignment
+          ) && (
             <TicketActionPanel>
+
+              {/* ================================================
+                  STATUS
+              ================================================= */}
+
               {canManageStatus && (
                 <StatusSelector
-                  status={ticket.status}
+                  status={
+                    ticket.status
+                  }
                   onAdvance={
                     handleAdvanceStatus
                   }
-                  disabled={isDone}
+                  disabled={
+                    isDone ||
+                    updatingStatus
+                  }
                   isUpdating={
                     updatingStatus
                   }
                 />
               )}
+
+
+              {/* ================================================
+                  PRIORITY
+              ================================================= */}
 
               {canManagePriority && (
                 <div>
@@ -561,7 +852,9 @@ export default function TicketDetailPage() {
                             option.value
                           }
                         >
-                          {option.label}
+                          {
+                            option.label
+                          }
                         </option>
                       )
                     )}
@@ -575,6 +868,11 @@ export default function TicketDetailPage() {
                 </div>
               )}
 
+
+              {/* ================================================
+                  ASSIGNMENT
+              ================================================= */}
+
               {canManageAssignment && (
                 <AssignmentPanel
                   assigneeId={
@@ -586,20 +884,32 @@ export default function TicketDetailPage() {
                   onAssign={
                     handleAssign
                   }
-                  disabled={isDone}
+                  disabled={
+                    isDone ||
+                    updatingAssignment
+                  }
                   isUpdating={
                     updatingAssignment
                   }
                 />
               )}
 
+
+              {/* ================================================
+                  DONE LOCK
+              ================================================= */}
+
               {isDone && (
                 <p className="rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                  This ticket is DONE. Workflow changes are locked.
+                  This ticket is DONE.
+                  Workflow changes are
+                  locked.
                 </p>
               )}
+
             </TicketActionPanel>
           )}
+
         </div>
       </div>
     </div>
