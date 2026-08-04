@@ -7,16 +7,22 @@ import { useAuth } from '../../context/AuthContext';
 import {
   ROUTES,
   DASHBOARD_BY_ROLE,
-  buildTicketDetailPath,
 } from '../../constants/routes';
 
 import { ROLES } from '../../constants/roles';
 
-import { createTicket } from '../../services/ticketService';
+import {
+  createTicket,
+} from '../../services/ticketService';
+
+import {
+  uploadAttachment,
+} from '../../services/attachmentService';
 
 import Card from '../../components/ui/Card';
 import TicketHeader from '../../components/tickets/TicketHeader';
 import TicketForm from '../../components/tickets/TicketForm';
+import AttachmentUploader from '../../components/tickets/AttachmentUploader';
 
 const LIST_ROUTE_BY_ROLE = {
   [ROLES.USER]: ROUTES.USER_TICKETS,
@@ -62,51 +68,74 @@ export default function CreateTicketPage() {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
+  const [attachment, setAttachment] =
+    useState(null);
+
   const backTo =
     LIST_ROUTE_BY_ROLE[role] ??
     DASHBOARD_BY_ROLE[role] ??
     ROUTES.HOME;
 
   const handleSubmit = async (data) => {
-    if (isSubmitting) {
-      return;
-    }
-
     setIsSubmitting(true);
-
-    const payload = {
-      type: data.type,
-      title: data.title.trim(),
-      description: data.description.trim(),
-      priority: data.priority,
-      module: data.module,
-    };
 
     try {
       const createdTicket =
-        await createTicket(payload);
+        await createTicket({
+          type:
+            data.type?.toUpperCase() === 'FEATURE'
+              ? 'FEATURE'
+              : 'BUG',
 
-      if (!createdTicket?.id) {
-        throw new Error(
-          'Ticket was created but the server did not return a ticket ID.'
-        );
+          title: data.title,
+
+          description:
+            data.description,
+
+          priority:
+            data.priority?.toUpperCase(),
+
+          module:
+            data.category,
+        });
+
+      /*
+       * Ticket harus dibuat terlebih dahulu karena
+       * endpoint attachment membutuhkan ticket_id.
+       */
+      if (
+        attachment &&
+        createdTicket?.id
+      ) {
+        try {
+          await uploadAttachment(
+            createdTicket.id,
+            attachment
+          );
+        } catch (attachmentError) {
+          console.error(
+            'Attachment upload failed:',
+            attachmentError
+          );
+
+          toast.warning(
+            'Ticket was created, but the attachment could not be uploaded.'
+          );
+        }
       }
 
-      const ticketLabel =
-        createdTicket.ticket_number ??
-        `#${createdTicket.id}`;
-
       toast.success(
-        `Ticket ${ticketLabel} created successfully.`
+        `Ticket ${
+          createdTicket.ticket_number ??
+          createdTicket.id
+        } created`
       );
 
-      navigate(
-        buildTicketDetailPath(
-          createdTicket.id
-        )
-      );
+      navigate(backTo);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      toast.error(
+        getErrorMessage(error)
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -134,6 +163,23 @@ export default function CreateTicketPage() {
           isSubmitting={isSubmitting}
           submitLabel="Submit Ticket"
         />
+
+        <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-800">
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Attachment
+            </h2>
+
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Attach a screenshot or document related to this ticket.
+            </p>
+          </div>
+
+          <AttachmentUploader
+            file={attachment}
+            onChange={setAttachment}
+          />
+        </div>
       </Card>
     </div>
   );
