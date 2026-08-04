@@ -266,17 +266,6 @@ export default function PMTicketListPage() {
             >
               Refresh
             </Button>
-
-            <Button
-              icon={Plus}
-              onClick={() =>
-                navigate(
-                  ROUTES.CREATE_TICKET
-                )
-              }
-            >
-              Create Ticket
-            </Button>
           </div>
         }
       />

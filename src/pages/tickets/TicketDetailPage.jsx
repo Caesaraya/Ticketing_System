@@ -28,36 +28,59 @@ import {
 } from '../../services/userService';
 
 import {
-  getAttachments,
-} from '../../services/attachmentService';
+  getTicketComments,
+  createComment,
+} from '../../services/commentService';
 
 import {
-  downloadAttachmentFile,
+  getTicketAttachments,
+  downloadAttachment,
   previewAttachment,
-} from '../../utils/attachmentUtills';
+} from '../../services/attachmentService';
 
 import Card from '../../components/ui/Card';
 import Select from '../../components/ui/Select';
 
-import TicketDetailHeader from '../../components/tickets/TicketDetailHeader';
-import TicketTimeline from '../../components/tickets/TicketTimeline';
-import TicketInfoCard from '../../components/tickets/TicketInfoCard';
-import TicketEmptyState from '../../components/tickets/TicketEmptyState';
-import TicketActionPanel from '../../components/tickets/TicketActionPanel';
-import StatusSelector from '../../components/tickets/StatusSelector';
-import AssignmentPanel from '../../components/tickets/AssignmentPanel';
-import AssigneeAvatar from '../../components/tickets/AssigneeAvatar';
+import TicketDetailHeader
+  from '../../components/tickets/TicketDetailHeader';
 
-import AttachmentCard from '../../components/tickets/AttachmentCard';
+import TicketTimeline
+  from '../../components/tickets/TicketTimeline';
+
+import TicketInfoCard
+  from '../../components/tickets/TicketInfoCard';
+
+import TicketEmptyState
+  from '../../components/tickets/TicketEmptyState';
+
+import TicketActionPanel
+  from '../../components/tickets/TicketActionPanel';
+
+import StatusSelector
+  from '../../components/tickets/StatusSelector';
+
+import AssignmentPanel
+  from '../../components/tickets/AssignmentPanel';
+
+import AssigneeAvatar
+  from '../../components/tickets/AssigneeAvatar';
+
+import AttachmentCard
+  from '../../components/tickets/AttachmentCard';
 
 import {
   PRIORITY_OPTIONS,
 } from '../../constants/ticketOptions';
 
 const BACK_ROUTE_BY_ROLE = {
-  [ROLES.USER]: ROUTES.USER_TICKETS,
-  [ROLES.PM_IT]: ROUTES.PM_TICKETS,
-  [ROLES.STAFF_IT]: ROUTES.STAFF_TICKETS,
+  [ROLES.USER]:
+    ROUTES.USER_TICKETS,
+
+  [ROLES.PM_IT]:
+    ROUTES.PM_TICKETS,
+
+  [ROLES.STAFF_IT]:
+    ROUTES.STAFF_TICKETS,
 };
 
 function formatDate(value) {
@@ -85,12 +108,20 @@ function getErrorMessage(
     );
   }
 
+  if (error?.status === 401) {
+    return 'Your session has expired. Please login again.';
+  }
+
   if (error?.status === 403) {
-    return 'You do not have permission to perform this action.';
+    return (
+      'You do not have permission to perform this action.'
+    );
   }
 
   if (error?.status === 404) {
-    return 'The ticket or selected user was not found.';
+    return (
+      'The requested data was not found.'
+    );
   }
 
   if (error?.status === 422) {
@@ -101,7 +132,9 @@ function getErrorMessage(
   }
 
   if (error?.status >= 500) {
-    return 'The server encountered an error. Please try again later.';
+    return (
+      'The server encountered an error. Please try again later.'
+    );
   }
 
   if (
@@ -109,17 +142,25 @@ function getErrorMessage(
       ?.toLowerCase()
       .includes('unable to reach')
   ) {
-    return 'Unable to connect to the Ticketing System backend.';
+    return (
+      'Unable to connect to the Ticketing System backend.'
+    );
   }
 
-  return error?.message || fallback;
+  return (
+    error?.message ||
+    fallback
+  );
 }
 
 export default function TicketDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { user, role } = useAuth();
+  const {
+    user,
+    role,
+  } = useAuth();
 
   const [ticket, setTicket] =
     useState(null);
@@ -152,25 +193,62 @@ export default function TicketDetailPage() {
   ] = useState(false);
 
   /*
-   * Attachment state
+   * COMMENTS
    */
-  const [
-    attachments,
-    setAttachments,
-  ] = useState([]);
+  const [comments, setComments] =
+    useState([]);
 
   const [
-    isAttachmentsLoading,
-    setIsAttachmentsLoading,
-  ] = useState(true);
+    commentAuthors,
+    setCommentAuthors,
+  ] = useState({});
 
   const [
-    attachmentsError,
-    setAttachmentsError,
+    isLoadingComments,
+    setIsLoadingComments,
+  ] = useState(false);
+
+  const [
+    commentError,
+    setCommentError,
+  ] = useState('');
+
+  const [
+    commentContent,
+    setCommentContent,
+  ] = useState('');
+
+  const [
+    isSubmittingComment,
+    setIsSubmittingComment,
+  ] = useState(false);
+
+  /*
+   * USER dan STAFF_IT boleh membuat komentar.
+   * PM_IT hanya dapat melihat komentar.
+   */
+  const canComment =
+    role === ROLES.USER ||
+    role === ROLES.STAFF_IT;
+
+  /*
+   * ATTACHMENTS
+   */
+  const [attachments, setAttachments] =
+    useState([]);
+
+  const [
+    isLoadingAttachments,
+    setIsLoadingAttachments,
+  ] = useState(false);
+
+  const [
+    attachmentError,
+    setAttachmentError,
   ] = useState('');
 
   /*
-   * Load ticket
+   * LOAD TICKET
    */
   const loadTicket = useCallback(
     async () => {
@@ -184,7 +262,7 @@ export default function TicketDetailPage() {
         setTicket(data);
 
         /*
-         * Load reporter information
+         * Reporter
          */
         if (data?.reporter_id) {
           try {
@@ -194,7 +272,8 @@ export default function TicketDetailPage() {
               );
 
             setReporterName(
-              reporter?.name ??
+              reporter?.username ??
+                reporter?.name ??
                 `User #${data.reporter_id}`
             );
           } catch {
@@ -207,7 +286,7 @@ export default function TicketDetailPage() {
         }
 
         /*
-         * Load assignee information
+         * Assignee
          */
         if (data?.pic_id) {
           try {
@@ -217,7 +296,8 @@ export default function TicketDetailPage() {
               );
 
             setAssigneeName(
-              assignee?.name ??
+              assignee?.username ??
+                assignee?.name ??
                 `User #${data.pic_id}`
             );
           } catch {
@@ -257,69 +337,186 @@ export default function TicketDetailPage() {
   );
 
   /*
-   * Load attachments
+   * LOAD COMMENTS
    */
-  const loadAttachments =
-    useCallback(async () => {
+  const loadComments = useCallback(
+    async () => {
       if (!id) {
         return;
       }
 
-      setIsAttachmentsLoading(true);
-      setAttachmentsError('');
+      setIsLoadingComments(true);
+      setCommentError('');
 
       try {
-        const response =
-          await getAttachments(id, {
-            skip: 0,
-            limit: 20,
-          });
+        const data =
+          await getTicketComments(
+            id,
+            {
+              skip: 0,
+              limit: 20,
+            }
+          );
 
-        setAttachments(
-          Array.isArray(response)
-            ? response
-            : []
+        const loadedComments =
+          Array.isArray(data)
+            ? data
+            : [];
+
+        setComments(
+          loadedComments
+        );
+
+        /*
+         * Ambil semua author_id unik.
+         */
+        const authorIds = [
+          ...new Set(
+            loadedComments
+              .map(
+                (comment) =>
+                  comment?.author_id
+              )
+              .filter(
+                (authorId) =>
+                  authorId !== null &&
+                  authorId !== undefined
+              )
+          ),
+        ];
+
+        const authorMap = {};
+
+        /*
+         * Username user yang sedang login
+         * sudah tersedia dari AuthContext.
+         */
+        if (user?.id) {
+          authorMap[user.id] =
+            user?.username ??
+            user?.name ??
+            `User #${user.id}`;
+        }
+
+        /*
+         * Ambil username author lain.
+         */
+        const otherAuthorIds =
+          authorIds.filter(
+            (authorId) =>
+              Number(authorId) !==
+              Number(user?.id)
+          );
+
+        await Promise.all(
+          otherAuthorIds.map(
+            async (authorId) => {
+              try {
+                const author =
+                  await getUserById(
+                    authorId
+                  );
+
+                authorMap[authorId] =
+                  author?.username ??
+                  author?.name ??
+                  `User #${authorId}`;
+              } catch {
+                authorMap[authorId] =
+                  `User #${authorId}`;
+              }
+            }
+          )
+        );
+
+        setCommentAuthors(
+          authorMap
         );
       } catch (err) {
-        setAttachments([]);
+        setComments([]);
+        setCommentAuthors({});
 
-        if (err?.status === 403) {
-          setAttachmentsError(
-            'You do not have permission to view these attachments.'
+        setCommentError(
+          getErrorMessage(
+            err,
+            'Failed to load comments.'
+          )
+        );
+      } finally {
+        setIsLoadingComments(false);
+      }
+    },
+    [id, user]
+  );
+
+  /*
+   * LOAD ATTACHMENTS
+   */
+  const loadAttachments =
+    useCallback(
+      async () => {
+        if (!id) {
+          return;
+        }
+
+        setIsLoadingAttachments(true);
+        setAttachmentError('');
+
+        try {
+          const data =
+            await getTicketAttachments(
+              id,
+              {
+                skip: 0,
+                limit: 20,
+              }
+            );
+
+          setAttachments(
+            Array.isArray(data)
+              ? data
+              : []
           );
-        } else if (
-          err?.status === 404
-        ) {
-          setAttachmentsError(
-            'Attachments were not found.'
-          );
-        } else {
-          setAttachmentsError(
+        } catch (err) {
+          setAttachments([]);
+
+          setAttachmentError(
             getErrorMessage(
               err,
               'Failed to load attachments.'
             )
           );
+        } finally {
+          setIsLoadingAttachments(false);
         }
-      } finally {
-        setIsAttachmentsLoading(false);
-      }
-    }, [id]);
+      },
+      [id]
+    );
 
+  /*
+   * INITIAL LOAD
+   */
   useEffect(() => {
     loadTicket();
   }, [loadTicket]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
 
   useEffect(() => {
     loadAttachments();
   }, [loadAttachments]);
 
   /*
-   * Status
+   * STATUS
    */
   const handleAdvanceStatus =
     async (nextStatus) => {
-      if (!ticket || updatingStatus) {
+      if (
+        !ticket ||
+        updatingStatus
+      ) {
         return;
       }
 
@@ -350,11 +547,14 @@ export default function TicketDetailPage() {
     };
 
   /*
-   * Priority
+   * PRIORITY
    */
   const handlePriorityChange =
     async (event) => {
-      if (!ticket || updatingPriority) {
+      if (
+        !ticket ||
+        updatingPriority
+      ) {
         return;
       }
 
@@ -362,7 +562,8 @@ export default function TicketDetailPage() {
         event.target.value;
 
       if (
-        nextPriority === ticket.priority
+        nextPriority ===
+        ticket.priority
       ) {
         return;
       }
@@ -394,32 +595,35 @@ export default function TicketDetailPage() {
     };
 
   /*
-   * Assignment
+   * ASSIGNMENT
    */
-  const handleAssign = async (picId) => {
-    if (!ticket || updatingAssignment) {
-      return;
-    }
+  const handleAssign =
+    async (picId) => {
+      if (
+        !ticket ||
+        updatingAssignment
+      ) {
+        return;
+      }
 
-    if (
-      Number(picId) ===
-      Number(ticket.pic_id)
-    ) {
-      return;
-    }
+      if (
+        Number(picId) ===
+        Number(ticket.pic_id)
+      ) {
+        return;
+      }
 
-    setUpdatingAssignment(true);
+      setUpdatingAssignment(true);
 
-    try {
-      const updated =
-        await assignTicket(
-          ticket.id,
-          picId
-        );
+      try {
+        const updated =
+          await assignTicket(
+            ticket.id,
+            picId
+          );
 
-      setTicket(updated);
+        setTicket(updated);
 
-      if (updated?.pic_id) {
         try {
           const staff =
             await getUserById(
@@ -427,7 +631,8 @@ export default function TicketDetailPage() {
             );
 
           setAssigneeName(
-            staff?.name ??
+            staff?.username ??
+              staff?.name ??
               `User #${updated.pic_id}`
           );
         } catch {
@@ -435,27 +640,205 @@ export default function TicketDetailPage() {
             `User #${updated.pic_id}`
           );
         }
-      } else {
-        setAssigneeName('');
-      }
 
-      toast.success(
-        'Ticket assignment updated.'
-      );
-    } catch (err) {
-      toast.error(
-        getErrorMessage(
-          err,
-          'Failed to assign ticket.'
-        )
-      );
-    } finally {
-      setUpdatingAssignment(false);
-    }
-  };
+        toast.success(
+          'Ticket assignment updated.'
+        );
+      } catch (err) {
+        toast.error(
+          getErrorMessage(
+            err,
+            'Failed to assign ticket.'
+          )
+        );
+      } finally {
+        setUpdatingAssignment(false);
+      }
+    };
 
   /*
-   * Loading ticket
+   * ADD COMMENT
+   */
+  const handleAddComment =
+    async (event) => {
+      event.preventDefault();
+
+      /*
+       * PM tidak boleh membuat komentar.
+       */
+      if (!canComment) {
+        toast.error(
+          'You do not have permission to add comments.'
+        );
+
+        return;
+      }
+
+      const content =
+        commentContent.trim();
+
+      if (!content) {
+        toast.error(
+          'Comment cannot be empty.'
+        );
+
+        return;
+      }
+
+      if (isSubmittingComment) {
+        return;
+      }
+
+      setIsSubmittingComment(true);
+
+      try {
+        /*
+         * author_id TIDAK dikirim.
+         *
+         * Backend mengambil author
+         * berdasarkan JWT user yang login.
+         */
+        const createdComment =
+          await createComment(
+            ticket.id,
+            content
+          );
+
+        /*
+         * Tambahkan komentar baru
+         * ke daftar secara langsung.
+         */
+        setComments(
+          (previous) => [
+            ...previous,
+            createdComment,
+          ]
+        );
+
+        /*
+         * Pastikan username current user
+         * tersedia pada author map.
+         */
+        if (user?.id) {
+          setCommentAuthors(
+            (previous) => ({
+              ...previous,
+              [user.id]:
+                user?.username ??
+                user?.name ??
+                `User #${user.id}`,
+            })
+          );
+        }
+
+        setCommentContent('');
+
+        toast.success(
+          'Comment added successfully.'
+        );
+      } catch (err) {
+        if (err?.status === 403) {
+          toast.error(
+            'You do not have permission to add comments.'
+          );
+        } else {
+          toast.error(
+            getErrorMessage(
+              err,
+              'Failed to add comment.'
+            )
+          );
+        }
+      } finally {
+        setIsSubmittingComment(false);
+      }
+    };
+
+  /*
+   * COMMENT AUTHOR
+   */
+  const getCommentAuthorName =
+    (comment) => {
+      const authorId =
+        comment?.author_id;
+
+      /*
+       * Komentar sendiri:
+       * tampilkan "You".
+       */
+      if (
+        Number(authorId) ===
+        Number(user?.id)
+      ) {
+        return 'You';
+      }
+
+      /*
+       * Komentar user lain:
+       * tampilkan username.
+       */
+      return (
+        commentAuthors[authorId] ??
+        `User #${authorId}`
+      );
+    };
+
+  /*
+   * DOWNLOAD ATTACHMENT
+   */
+  const handleDownloadAttachment =
+    async (attachment) => {
+      const result =
+        await downloadAttachment(
+          attachment.id
+        );
+
+      if (
+        typeof result === 'string'
+      ) {
+        window.open(
+          result,
+          '_blank',
+          'noopener,noreferrer'
+        );
+
+        return;
+      }
+
+      throw new Error(
+        'Attachment download URL was not returned by the server.'
+      );
+    };
+
+  /*
+   * PREVIEW ATTACHMENT
+   */
+  const handlePreviewAttachment =
+    async (attachment) => {
+      const result =
+        await previewAttachment(
+          attachment.id
+        );
+
+      if (
+        typeof result === 'string'
+      ) {
+        window.open(
+          result,
+          '_blank',
+          'noopener,noreferrer'
+        );
+
+        return;
+      }
+
+      throw new Error(
+        'Attachment preview URL was not returned by the server.'
+      );
+    };
+
+  /*
+   * LOADING
    */
   if (isLoading) {
     return (
@@ -468,7 +851,7 @@ export default function TicketDetailPage() {
   }
 
   /*
-   * Ticket error
+   * ERROR
    */
   if (error) {
     return (
@@ -493,7 +876,9 @@ export default function TicketDetailPage() {
   if (!ticket) {
     return (
       <TicketEmptyState
-        message={`Ticket ${id} was not found.`}
+        message={
+          `Ticket ${id} was not found.`
+        }
       />
     );
   }
@@ -533,14 +918,17 @@ export default function TicketDetailPage() {
 
       <Card className="p-5">
         <TicketTimeline
-          currentStage={ticket.status}
+          currentStage={
+            ticket.status
+          }
         />
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
         <div className="space-y-6 lg:col-span-2">
 
-          {/* Description */}
+          {/* DESCRIPTION */}
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Description
@@ -552,73 +940,223 @@ export default function TicketDetailPage() {
             </p>
           </Card>
 
-          {/* Attachments */}
+          {/* ATTACHMENTS */}
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Attachments ({attachments.length})
+              Attachments
             </h2>
 
-            {isAttachmentsLoading ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500">
+            {isLoadingAttachments && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Loading attachments...
               </p>
-            ) : attachmentsError ? (
-              <div className="space-y-2">
-                <p className="text-sm text-red-500">
-                  {attachmentsError}
-                </p>
+            )}
 
-                <button
-                  type="button"
-                  onClick={loadAttachments}
-                  className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : attachments.length === 0 ? (
-              <TicketEmptyState
-                message="No attachments."
-              />
-            ) : (
-              <div className="space-y-2">
-                {attachments.map(
-                  (attachment) => (
-                    <AttachmentCard
-                      key={
-                        attachment.id
-                      }
-                      id={
-                        attachment.id
-                      }
-                      name={
-                        attachment.filename
-                      }
-                      contentType={
-                        attachment.content_type
-                      }
-                      size={
-                        attachment.content_type ||
-                        'Attachment'
-                      }
-                      onDownload={() =>
-                        downloadAttachmentFile(
-                          attachment
-                        )
-                      }
-                      onPreview={() =>
-                        previewAttachment(
-                          attachment
-                        )
-                      }
-                    />
-                  )
-                )}
-              </div>
+            {!isLoadingAttachments &&
+              attachmentError && (
+                <div className="space-y-3">
+                  <p className="text-sm text-red-500">
+                    {attachmentError}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      loadAttachments
+                    }
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+            {!isLoadingAttachments &&
+              !attachmentError &&
+              attachments.length === 0 && (
+                <TicketEmptyState
+                  message="No attachments."
+                />
+              )}
+
+            {!isLoadingAttachments &&
+              !attachmentError &&
+              attachments.length > 0 && (
+                <div className="space-y-2">
+                  {attachments.map(
+                    (attachment) => (
+                      <AttachmentCard
+                        key={
+                          attachment.id
+                        }
+                        id={
+                          attachment.id
+                        }
+                        name={
+                          attachment.filename
+                        }
+                        contentType={
+                          attachment.content_type
+                        }
+                        onDownload={() =>
+                          handleDownloadAttachment(
+                            attachment
+                          )
+                        }
+                        onPreview={() =>
+                          handlePreviewAttachment(
+                            attachment
+                          )
+                        }
+                      />
+                    )
+                  )}
+                </div>
+              )}
+          </Card>
+
+          {/* COMMENTS */}
+          <Card className="p-5">
+            <h2 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Comments
+            </h2>
+
+            {isLoadingComments && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Loading comments...
+              </p>
+            )}
+
+            {!isLoadingComments &&
+              commentError && (
+                <div className="space-y-3">
+                  <p className="text-sm text-red-500">
+                    {commentError}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      loadComments
+                    }
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+            {!isLoadingComments &&
+              !commentError &&
+              comments.length === 0 && (
+                <TicketEmptyState
+                  message="No comments yet."
+                />
+              )}
+
+            {!isLoadingComments &&
+              !commentError &&
+              comments.length > 0 && (
+                <div className="space-y-3">
+                  {comments.map(
+                    (comment) => {
+                      const authorName =
+                        getCommentAuthorName(
+                          comment
+                        );
+
+                      const isOwnComment =
+                        Number(
+                          comment?.author_id
+                        ) ===
+                        Number(user?.id);
+
+                      return (
+                        <div
+                          key={
+                            comment.id
+                          }
+                          className="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              {isOwnComment
+                                ? 'You'
+                                : authorName}
+                            </p>
+
+                            <p className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                              {formatDate(
+                                comment.timestamp
+                              )}
+                            </p>
+                          </div>
+
+                          <p className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">
+                            {
+                              comment.content
+                            }
+                          </p>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+
+            {/* COMMENT FORM */}
+            {canComment && (
+              <form
+                onSubmit={
+                  handleAddComment
+                }
+                className="mt-5 space-y-3"
+              >
+                <textarea
+                  value={
+                    commentContent
+                  }
+                  onChange={(event) =>
+                    setCommentContent(
+                      event.target.value
+                    )
+                  }
+                  disabled={
+                    isSubmittingComment
+                  }
+                  rows={4}
+                  placeholder="Write a comment..."
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                />
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={
+                      isSubmittingComment ||
+                      !commentContent.trim()
+                    }
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSubmittingComment
+                      ? 'Sending...'
+                      : 'Add Comment'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* PM VIEW */}
+            {!canComment && (
+              <p className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                You can view comments,
+                but you cannot add
+                comments to this ticket.
+              </p>
             )}
           </Card>
 
-          {/* Activity History */}
+          {/* ACTIVITY */}
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
               Activity History
@@ -630,9 +1168,8 @@ export default function TicketDetailPage() {
           </Card>
         </div>
 
+        {/* RIGHT COLUMN */}
         <div className="space-y-6">
-
-          {/* Ticket information */}
           <TicketInfoCard
             title="Ticket Details"
             rows={[
@@ -662,7 +1199,7 @@ export default function TicketDetailPage() {
                   <AssigneeAvatar
                     name={
                       assigneeName ||
-                      'Unassigned'
+                      '-'
                     }
                   />
                 ),
@@ -684,15 +1221,15 @@ export default function TicketDetailPage() {
             ]}
           />
 
-          {/* Ticket actions */}
           {(canManageStatus ||
             canManagePriority ||
             canManageAssignment) && (
             <TicketActionPanel>
-
               {canManageStatus && (
                 <StatusSelector
-                  status={ticket.status}
+                  status={
+                    ticket.status
+                  }
                   onAdvance={
                     handleAdvanceStatus
                   }
@@ -731,7 +1268,9 @@ export default function TicketDetailPage() {
                             option.value
                           }
                         >
-                          {option.label}
+                          {
+                            option.label
+                          }
                         </option>
                       )
                     )}
@@ -765,7 +1304,9 @@ export default function TicketDetailPage() {
 
               {isDone && (
                 <p className="rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                  This ticket is DONE. Workflow changes are locked.
+                  This ticket is DONE.
+                  Workflow changes are
+                  locked.
                 </p>
               )}
             </TicketActionPanel>
