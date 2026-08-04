@@ -39,9 +39,20 @@ export function updateTicketStatus(ticketId, status) {
 }
 
 export function assignTicket(ticketId, picId) {
-  return api.patch(`/tickets/${ticketId}/assign`, {
-    pic_id: picId,
-  });
+  if (!ticketId) {
+    throw new Error('Ticket ID is required.');
+  }
+
+  if (!picId) {
+    throw new Error('PIC ID is required.');
+  }
+
+  return api.patch(
+    `/tickets/${ticketId}/assign`,
+    {
+      pic_id: Number(picId),
+    }
+  );
 }
 
 export function updateTicketPriority(

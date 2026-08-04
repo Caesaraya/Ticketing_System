@@ -1,70 +1,66 @@
 import { useCallback, useState } from 'react';
 
 import {
-  createTicket,
-  updateTicket,
-  updateTicketStatus,
   assignTicket,
-  updateTicketPriority,
 } from '../services/ticketService';
 
 export function useTicketActions() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
-  const execute = useCallback(async (action) => {
-    setIsSubmitting(true);
-    setError(null);
+  const assign = useCallback(async (ticketId, picId) => {
+    setIsAssigning(true);
+    setActionError(null);
 
     try {
-      return await action();
-    } catch (err) {
-      setError(err);
-      throw err;
+      const updatedTicket = await assignTicket(
+        ticketId,
+        picId
+      );
+
+      return updatedTicket;
+    } catch (error) {
+      let message = 'Failed to assign ticket.';
+
+      if (error?.status === 403) {
+        message =
+          'You do not have permission to assign this ticket.';
+      } else if (error?.status === 404) {
+        message =
+          'Ticket or selected PIC was not found.';
+      } else if (error?.status === 422) {
+        message =
+          'The assignment data is invalid.';
+      } else if (error?.status >= 500) {
+        message =
+          'The server could not process the assignment.';
+      } else if (
+        error?.message &&
+        error.message.includes('Unable to reach')
+      ) {
+        message =
+          'Unable to connect to the backend.';
+      }
+
+      setActionError(message);
+
+      throw error;
     } finally {
-      setIsSubmitting(false);
+      setIsAssigning(false);
     }
   }, []);
 
-  const handleCreateTicket = useCallback(
-    (payload) => execute(() => createTicket(payload)),
-    [execute]
-  );
-
-  const handleUpdateTicket = useCallback(
-    (ticketId, payload) =>
-      execute(() => updateTicket(ticketId, payload)),
-    [execute]
-  );
-
-  const handleUpdateStatus = useCallback(
-    (ticketId, status) =>
-      execute(() => updateTicketStatus(ticketId, status)),
-    [execute]
-  );
-
-  const handleAssignTicket = useCallback(
-    (ticketId, picId) =>
-      execute(() => assignTicket(ticketId, picId)),
-    [execute]
-  );
-
-  const handleUpdatePriority = useCallback(
-    (ticketId, priority) =>
-      execute(() =>
-        updateTicketPriority(ticketId, priority)
-      ),
-    [execute]
-  );
+  const clearActionError = useCallback(() => {
+    setActionError(null);
+  }, []);
 
   return {
-    createTicket: handleCreateTicket,
-    updateTicket: handleUpdateTicket,
-    updateStatus: handleUpdateStatus,
-    assignTicket: handleAssignTicket,
-    updatePriority: handleUpdatePriority,
-    isSubmitting,
-    error,
-    clearError: () => setError(null),
+    assignTicket: assign,
+
+    isAssigning,
+
+    actionError,
+
+    clearActionError,
   };
 }
