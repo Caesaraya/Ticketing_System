@@ -1156,16 +1156,7 @@ export default function TicketDetailPage() {
             )}
           </Card>
 
-          {/* ACTIVITY */}
-          <Card className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Activity History
-            </h2>
 
-            <TicketEmptyState
-              message="Ticket history will be integrated with the activity/history stage."
-            />
-          </Card>
         </div>
 
         {/* RIGHT COLUMN */}

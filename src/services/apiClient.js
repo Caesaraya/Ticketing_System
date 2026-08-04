@@ -243,3 +243,11 @@ export const api = {
     });
   },
 };
+export async function getActivityLogs({
+  skip = 0,
+  limit = 20,
+} = {}) {
+  return api.get(
+    `/activity-logs?skip=${skip}&limit=${limit}`
+  );
+}
