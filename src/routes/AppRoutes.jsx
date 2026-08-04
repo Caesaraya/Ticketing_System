@@ -16,6 +16,9 @@ import StaffDashboardPage from '../pages/staff/StaffDashboardPage';
 import StaffTicketListPage from '../pages/staff/StaffTicketListPage';
 import TicketDetailPage from '../pages/tickets/TicketDetailPage';
 import CreateTicketPage from '../pages/tickets/CreateTicketPage';
+import NotificationsPage from '../pages/NotificationsPage';
+import ProfilePage from '../pages/ProfilePage';
+import SettingsPage from '../pages/SettingsPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
@@ -61,6 +64,9 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute allowedRoles={[ROLES.USER, ROLES.PM, ROLES.STAFF]} />}>
         <Route element={<MainLayout />}>
           <Route path={ROUTES.TICKET_DETAIL} element={<TicketDetailPage />} />
+          <Route path={ROUTES.NOTIFICATIONS} element={<NotificationsPage />} />
+          <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
+          <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
         </Route>
       </Route>
 

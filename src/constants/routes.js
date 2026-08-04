@@ -12,6 +12,9 @@ export const ROUTES = Object.freeze({
   STAFF_TICKETS: '/staff/tickets',
   CREATE_TICKET: '/tickets/create',
   TICKET_DETAIL: '/tickets/:id',
+  NOTIFICATIONS: '/notifications',
+  PROFILE: '/profile',
+  SETTINGS: '/settings',
   UNAUTHORIZED: '/unauthorized',
 });
 
