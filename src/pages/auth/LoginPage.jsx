@@ -1,8 +1,10 @@
 import { useState } from 'react';
+
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
+
 import { useAuth } from '../../context/AuthContext';
 import { DASHBOARD_BY_ROLE } from '../../constants/routes';
 
@@ -18,7 +20,9 @@ import ThemeToggle from '../../components/ui/ThemeToggle';
 
 export default function LoginPage() {
   const { login } = useAuth();
+
   const navigate = useNavigate();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -26,21 +30,46 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm({
-    defaultValues: { email: '', password: '', rememberMe: false },
+    defaultValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
   });
 
-  // Role is no longer picked in the form — it comes back from the auth
-  // service after it looks the credentials up in the dummy user
-  // database. UI/markup below is unchanged from Stage 2 except the
-  // removed role <Select>.
-  const onSubmit = async ({ email, password }) => {
+  const onSubmit = async ({
+    email,
+    password,
+  }) => {
     setIsSubmitting(true);
+
     try {
-      const result = await login({ email, password });
-      toast.success(`Signed in as ${result.user.role}`);
-      navigate(DASHBOARD_BY_ROLE[result.user.role], { replace: true });
-    } catch (err) {
-      toast.error(err.message ?? 'Login failed');
+      const result = await login({
+        email,
+        password,
+      });
+
+      const dashboard =
+        DASHBOARD_BY_ROLE[result.user.role];
+
+      if (!dashboard) {
+        throw new Error(
+          `Role "${result.user.role}" belum memiliki dashboard frontend.`
+        );
+      }
+
+      toast.success(
+        `Welcome back, ${result.user.name}`
+      );
+
+      navigate(dashboard, {
+        replace: true,
+      });
+    } catch (error) {
+      toast.error(
+        error?.message ||
+          'Login failed. Please check your credentials.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -54,48 +83,96 @@ export default function LoginPage() {
 
       <Card className="p-8">
         <div className="mb-7 flex flex-col items-center text-center">
-          <Logo size="md" className="mb-3" />
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">TicketFlow</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Sign in to your account</p>
+          <Logo
+            size="md"
+            className="mb-3"
+          />
+
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            TicketFlow
+          </h1>
+
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Sign in to your account
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+        >
           <div>
-            <Label htmlFor="email">Email address</Label>
+            <Label htmlFor="email">
+              Email address
+            </Label>
+
             <Input
               id="email"
               type="email"
               icon={Mail}
               placeholder="name@company.com"
               error={errors.email}
-              {...register('email', { required: 'Email is required' })}
+              autoComplete="email"
+              {...register('email', {
+                required: 'Email is required',
+              })}
             />
-            {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">
+              Password
+            </Label>
+
             <PasswordInput
               id="password"
               placeholder="••••••••"
               error={errors.password}
-              {...register('password', { required: 'Password is required' })}
+              autoComplete="current-password"
+              {...register('password', {
+                required: 'Password is required',
+              })}
             />
-            {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
+
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-500">
+                {errors.password.message}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
-            <Checkbox id="rememberMe" label="Remember me" {...register('rememberMe')} />
+            <Checkbox
+              id="rememberMe"
+              label="Remember me"
+              {...register('rememberMe')}
+            />
+
             <button
               type="button"
-              onClick={() => toast.info("Forgot password isn't available yet")}
+              onClick={() =>
+                toast.info(
+                  "Forgot password isn't available yet"
+                )
+              }
               className="text-sm font-medium text-blue-600 hover:underline"
             >
               Forgot password?
             </button>
           </div>
 
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            className="w-full"
+          >
             Sign In
           </Button>
         </form>

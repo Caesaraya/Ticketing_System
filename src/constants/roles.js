@@ -1,8 +1,7 @@
-// Central definition of user roles. Import this everywhere instead of
-// typing role strings by hand, so a typo becomes a build-time error
-// instead of a silent auth bug.
+// Role values must match the FastAPI RoleEnum exactly.
+
 export const ROLES = Object.freeze({
   USER: 'USER',
-  PM: 'PM',
-  STAFF: 'STAFF',
+  PM_IT: 'PM_IT',
+  STAFF_IT: 'STAFF_IT',
 });

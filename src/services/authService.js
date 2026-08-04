@@ -1,36 +1,38 @@
-import { DUMMY_USERS } from '../data/dummyUsers';
+import { api, tokenStorage } from './apiClient';
 
-// TEMPORARY dummy auth service. This is the ONLY file that needs to
-// change when the FastAPI backend is ready — swap the body of
-// loginDummy() for a real `axios.post('/auth/login', { email, password })`
-// call that returns { user, token }. AuthContext, LoginPage, and every
-// route guard call this the same way regardless of what's inside it,
-// so none of them need to change when the real endpoint arrives.
-export function loginDummy({ email, password }) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!email || !password) {
-        reject(new Error('Email and password are required'));
-        return;
-      }
-
-      const match = DUMMY_USERS.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      );
-
-      if (!match) {
-        reject(new Error('Invalid email or password'));
-        return;
-      }
-
-      resolve({
-        user: {
-          name: match.name,
-          email: match.email,
-          role: match.role,
-        },
-        token: 'dummy-token', // placeholder until JWT is wired up
-      });
-    }, 400);
+export async function login({ email, password }) {
+  const tokenResponse = await api.post('/auth/login', {
+    email,
+    password,
   });
+
+  if (!tokenResponse?.access_token) {
+    throw new Error('Login berhasil tetapi access token tidak diterima.');
+  }
+
+  tokenStorage.set(tokenResponse.access_token);
+
+  try {
+    const user = await api.get('/auth/me');
+
+    return {
+      user,
+      token: tokenResponse.access_token,
+    };
+  } catch (error) {
+    tokenStorage.clear();
+    throw error;
+  }
+}
+
+export async function getCurrentUser() {
+  return api.get('/auth/me');
+}
+
+export async function logout() {
+  try {
+    await api.post('/auth/logout');
+  } finally {
+    tokenStorage.clear();
+  }
 }

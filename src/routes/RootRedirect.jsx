@@ -1,17 +1,48 @@
 import { Navigate } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
-import { ROUTES, DASHBOARD_BY_ROLE } from '../constants/routes';
+import {
+  ROUTES,
+  DASHBOARD_BY_ROLE,
+} from '../constants/routes';
 
-// Handles "/" — sends a logged-in user straight to their own dashboard
-// instead of making them see a landing page, and sends everyone else
-// to Login. Kept as its own component (rather than inline logic in
-// AppRoutes) so it's independently testable.
 export default function RootRedirect() {
-  const { isAuthenticated, role } = useAuth();
+  const {
+    isAuthenticated,
+    isInitializing,
+    role,
+  } = useAuth();
 
-  if (isAuthenticated && DASHBOARD_BY_ROLE[role]) {
-    return <Navigate to={DASHBOARD_BY_ROLE[role]} replace />;
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600 dark:border-gray-700 dark:border-t-blue-400" />
+
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Checking your session...
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  return <Navigate to={ROUTES.LOGIN} replace />;
+  if (
+    isAuthenticated &&
+    DASHBOARD_BY_ROLE[role]
+  ) {
+    return (
+      <Navigate
+        to={DASHBOARD_BY_ROLE[role]}
+        replace
+      />
+    );
+  }
+
+  return (
+    <Navigate
+      to={ROUTES.LOGIN}
+      replace
+    />
+  );
 }

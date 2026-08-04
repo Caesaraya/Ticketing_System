@@ -1,10 +1,12 @@
-// Thin wrapper around localStorage that never throws (private-browsing
-// mode, storage quota, or corrupted JSON should degrade quietly instead
-// of crashing the app) and always speaks JSON.
 export function getStorageItem(key) {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw);
   } catch {
     return null;
   }
@@ -12,9 +14,14 @@ export function getStorageItem(key) {
 
 export function setStorageItem(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(
+      key,
+      JSON.stringify(value)
+    );
+
+    return true;
   } catch {
-    // ignore write errors
+    return false;
   }
 }
 
@@ -22,6 +29,32 @@ export function removeStorageItem(key) {
   try {
     localStorage.removeItem(key);
   } catch {
-    // ignore
+    // Ignore storage errors.
+  }
+}
+
+export function getRawStorageItem(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function setRawStorageItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function removeRawStorageItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors.
   }
 }
