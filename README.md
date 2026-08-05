@@ -48,7 +48,7 @@ Staff IT dapat:
 - Memproses tiket sesuai assignment
 - Mengubah status tiket sesuai hak aksesnya
 
-### 3. Ticket Detail
+3. Ticket Detail
 
 Halaman detail tiket menyediakan:
 
@@ -271,6 +271,3 @@ Fitur utama Ticketing System yang telah tersedia meliputi:
 * Notification
 * Filtering
 * Pagination
-
-```
-```
