@@ -3,6 +3,7 @@ import { ROLES } from './roles';
 export const ROUTES = Object.freeze({
   HOME: '/',
   LOGIN: '/login',
+  REGISTER: '/register',
 
   USER_DASHBOARD: '/user/dashboard',
   PM_DASHBOARD: '/pm/dashboard',

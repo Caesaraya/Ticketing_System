@@ -53,6 +53,9 @@ import UnauthorizedPage
 import NotFoundPage
   from '../pages/NotFoundPage';
 
+import RegisterPage
+  from '../pages/auth/RegisterPage';
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -65,16 +68,21 @@ export default function AppRoutes() {
         element={<RootRedirect />}
       />
 
-      {/* =====================================================
-          AUTH
-      ====================================================== */}
+{/* =====================================================
+    AUTH
+====================================================== */}
 
-      <Route element={<AuthLayout />}>
-        <Route
-          path={ROUTES.LOGIN}
-          element={<LoginPage />}
-        />
-      </Route>
+<Route element={<AuthLayout />}>
+  <Route
+    path={ROUTES.LOGIN}
+    element={<LoginPage />}
+  />
+
+  <Route
+    path={ROUTES.REGISTER}
+    element={<RegisterPage />}
+  />
+</Route>
 
       {/* =====================================================
           USER

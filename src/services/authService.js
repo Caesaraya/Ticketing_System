@@ -1,5 +1,19 @@
 import { api, tokenStorage } from './apiClient';
 
+export async function register({
+  name,
+  email,
+  password,
+  role,
+}) {
+  return api.post('/auth/register', {
+    name,
+    email,
+    password,
+    role,
+  });
+}
+
 export async function login({ email, password }) {
   const tokenResponse = await api.post('/auth/login', {
     email,
@@ -7,10 +21,14 @@ export async function login({ email, password }) {
   });
 
   if (!tokenResponse?.access_token) {
-    throw new Error('Login berhasil tetapi access token tidak diterima.');
+    throw new Error(
+      'Login berhasil tetapi access token tidak diterima.'
+    );
   }
 
-  tokenStorage.set(tokenResponse.access_token);
+  tokenStorage.set(
+    tokenResponse.access_token
+  );
 
   try {
     const user = await api.get('/auth/me');

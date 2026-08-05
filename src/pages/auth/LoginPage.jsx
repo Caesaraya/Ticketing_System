@@ -1,75 +1,132 @@
 import { useState } from 'react';
 
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import {
+  Link,
+  useNavigate,
+} from 'react-router-dom';
+
 import { Mail } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useAuth } from '../../context/AuthContext';
-import { DASHBOARD_BY_ROLE } from '../../constants/routes';
+
+import {
+  ROUTES,
+  DASHBOARD_BY_ROLE,
+} from '../../constants/routes';
 
 import Card from '../../components/ui/Card';
 import Logo from '../../components/ui/Logo';
 import Label from '../../components/ui/Label';
 import Input from '../../components/ui/Input';
 import PasswordInput from '../../components/ui/PasswordInput';
-import Checkbox from '../../components/ui/Checkbox';
 import Button from '../../components/ui/Button';
 import Divider from '../../components/ui/Divider';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 
 export default function LoginPage() {
-  const { login } = useAuth();
-
   const navigate = useNavigate();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      email: '',
-      password: '',
-      rememberMe: false,
-    },
-  });
+    login,
+  } = useAuth();
 
-  const onSubmit = async ({
-    email,
-    password,
-  }) => {
+  const [email, setEmail] =
+    useState('');
+
+  const [password, setPassword] =
+    useState('');
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    if (!email.trim()) {
+      toast.error(
+        'Email is required.'
+      );
+
+      return;
+    }
+
+    if (!password) {
+      toast.error(
+        'Password is required.'
+      );
+
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const result = await login({
-        email,
+        email: email.trim(),
         password,
       });
 
-      const dashboard =
-        DASHBOARD_BY_ROLE[result.user.role];
+      const role =
+        result?.user?.role;
 
-      if (!dashboard) {
-        throw new Error(
-          `Role "${result.user.role}" belum memiliki dashboard frontend.`
-        );
-      }
+      const dashboard =
+        DASHBOARD_BY_ROLE[role];
 
       toast.success(
-        `Welcome back, ${result.user.name}`
+        'Login successful.'
       );
 
-      navigate(dashboard, {
-        replace: true,
-      });
-    } catch (error) {
-      toast.error(
-        error?.message ||
-          'Login failed. Please check your credentials.'
+      navigate(
+        dashboard ??
+          ROUTES.HOME,
+        {
+          replace: true,
+        }
       );
+    } catch (error) {
+      if (error?.status === 401) {
+        toast.error(
+          error?.message ||
+            'Invalid email or password.'
+        );
+      } else if (
+        error?.status === 403
+      ) {
+        toast.error(
+          'You do not have permission to access the system.'
+        );
+      } else if (
+        error?.status === 422
+      ) {
+        toast.error(
+          error?.message ||
+            'Please check your login information.'
+        );
+      } else if (
+        error?.status >= 500
+      ) {
+        toast.error(
+          'The server is currently unavailable. Please try again later.'
+        );
+      } else if (
+        error?.message
+          ?.toLowerCase()
+          .includes('unable to reach')
+      ) {
+        toast.error(
+          'Unable to connect to the Ticketing System backend.'
+        );
+      } else {
+        toast.error(
+          error?.message ||
+            'Login failed. Please try again.'
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +155,7 @@ export default function LoginPage() {
         </div>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit}
           noValidate
           className="space-y-4"
         >
@@ -112,18 +169,14 @@ export default function LoginPage() {
               type="email"
               icon={Mail}
               placeholder="name@company.com"
-              error={errors.email}
+              value={email}
+              onChange={(event) =>
+                setEmail(
+                  event.target.value
+                )
+              }
               autoComplete="email"
-              {...register('email', {
-                required: 'Email is required',
-              })}
             />
-
-            {errors.email && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.email.message}
-              </p>
-            )}
           </div>
 
           <div>
@@ -134,38 +187,14 @@ export default function LoginPage() {
             <PasswordInput
               id="password"
               placeholder="••••••••"
-              error={errors.password}
-              autoComplete="current-password"
-              {...register('password', {
-                required: 'Password is required',
-              })}
-            />
-
-            {errors.password && (
-              <p className="mt-1 text-xs text-red-500">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Checkbox
-              id="rememberMe"
-              label="Remember me"
-              {...register('rememberMe')}
-            />
-
-            <button
-              type="button"
-              onClick={() =>
-                toast.info(
-                  "Forgot password isn't available yet"
+              value={password}
+              onChange={(event) =>
+                setPassword(
+                  event.target.value
                 )
               }
-              className="text-sm font-medium text-blue-600 hover:underline"
-            >
-              Forgot password?
-            </button>
+              autoComplete="current-password"
+            />
           </div>
 
           <Button
@@ -177,8 +206,20 @@ export default function LoginPage() {
           </Button>
         </form>
 
+        <div className="mt-5 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Don't have an account?{' '}
+            <Link
+              to={ROUTES.REGISTER}
+              className="font-medium text-blue-600 hover:underline"
+            >
+              Create an account
+            </Link>
+          </p>
+        </div>
+
         <div className="my-6">
-          <Divider label="Secure access" />
+          <Divider label="TicketFlow" />
         </div>
 
         <p className="text-center text-xs text-gray-400 dark:text-gray-500">
