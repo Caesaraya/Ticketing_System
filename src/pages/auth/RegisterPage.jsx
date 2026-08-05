@@ -141,13 +141,13 @@ export default function RegisterPage() {
     }
   };
 
-  return (
-    <div className="relative w-full max-w-sm">
-      <div className="absolute -top-14 right-0">
-        <ThemeToggle />
-      </div>
+return (
+  <div className="relative w-full max-w-sm px-0">
+    <div className="absolute -top-12 right-0 sm:-top-14">
+      <ThemeToggle />
+    </div>
 
-      <Card className="p-8">
+    <Card className="p-5 sm:p-8">
         <div className="mb-7 flex flex-col items-center text-center">
           <Logo
             size="md"
